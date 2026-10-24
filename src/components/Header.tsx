@@ -1,67 +1,134 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { X, Sparkles } from 'lucide-react'
+import { GoogleSignInButton } from './AuthControls'
 import { authClient } from '../lib/auth-client'
-import { GoogleSignInButton, SignOutButton } from './AuthControls'
-import ThemeToggle from './ThemeToggle'
 
 export default function Header() {
-  const { data: session, isPending } = authClient.useSession()
-  const displayName = session?.user.name ?? session?.user.email
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const { data: session } = authClient.useSession()
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4 backdrop-blur-lg">
-      <nav className="page-wrap flex flex-wrap items-center gap-x-3 gap-y-2 py-3 sm:py-4">
-        <h2 className="m-0 flex-shrink-0 text-base font-semibold tracking-tight">
+    <>
+      <header className="fixed top-4 sm:top-5 inset-x-0 z-50 flex justify-center pointer-events-none px-4 transition-all duration-300">
+        <nav
+          aria-label="Main Navigation"
+          className="pointer-events-auto flex items-center justify-between gap-3 sm:gap-6 md:gap-8 rounded-full bg-white/95 backdrop-blur-md px-3 sm:px-4 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-black/[0.07] transition-all hover:shadow-[0_12px_36px_rgb(0,0,0,0.12)]"
+        >
+          {/* Left: Brand Emblem + Name (Haven style) */}
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm text-[var(--sea-ink)] no-underline shadow-[0_8px_24px_rgba(30,90,72,0.08)] sm:px-4 sm:py-2"
+            className="flex items-center gap-2 pl-1 pr-1.5 py-1 text-sm font-bold tracking-tight !text-[#111215] !no-underline transition hover:opacity-85"
           >
-            <span className="h-2 w-2 rounded-full bg-[linear-gradient(90deg,#56c6be,#7ed3bf)]" />
-            Start Todo
+            {/* Warm amber geometric emblem inspired by reference icon */}
+            <div className="size-5.5 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 flex items-center justify-center shadow-xs">
+              <div className="size-2.5 rounded-full bg-white shadow-2xs" />
+            </div>
+            <span className="text-[15px] font-extrabold tracking-tight !text-[#111215]">
+              Screenlog
+            </span>
           </Link>
-        </h2>
 
-        <div className="order-3 flex w-full flex-wrap items-center gap-x-4 gap-y-1 pb-1 text-sm font-semibold sm:order-2 sm:w-auto sm:flex-nowrap sm:pb-0">
-          <Link
-            to="/"
-            className="nav-link"
-            activeProps={{ className: 'nav-link is-active' }}
-          >
-            Home
-          </Link>
-          {session?.session ? (
+          {/* Center: Nav Links */}
+          <div className="hidden sm:flex items-center gap-1 md:gap-1.5">
+            <Link
+              to="/"
+              className="text-xs md:text-[13px] font-medium !text-[#111215] !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
+            >
+              Home
+            </Link>
+            <a
+              href="/#consensus"
+              className="text-xs md:text-[13px] font-medium !text-[#111215] !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
+            >
+              Consensus
+            </a>
+            <a
+              href="/#drops"
+              className="text-xs md:text-[13px] font-medium !text-[#111215] !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
+            >
+              Drops
+            </a>
+            <a
+              href="/#card-maker"
+              className="text-xs md:text-[13px] font-medium !text-[#111215] !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
+            >
+              Scorecard
+            </a>
             <Link
               to="/dashboard"
-              className="nav-link"
-              activeProps={{ className: 'nav-link is-active' }}
+              className="text-xs md:text-[13px] font-medium !text-[#111215] !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
             >
-              Todos
+              Dashboard
             </Link>
-          ) : null}
-          <a
-            href="https://better-auth.com/docs/integrations/convex"
-            className="nav-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Better Auth Docs
-          </a>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2 sm:ml-0">
-          <div className="hidden rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm text-[var(--sea-ink-soft)] sm:block">
-            {isPending ? 'Checking session…' : displayName ?? 'Guest'}
           </div>
-          {session?.session ? (
-            <SignOutButton className="rounded-full border border-[rgba(23,58,64,0.2)] bg-white/70 px-4 py-2 text-sm font-semibold text-[var(--sea-ink)]" />
+
+          {/* Right: Black Pill Action Button */}
+          {session?.user ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center justify-center rounded-full bg-[#111215] px-4 sm:px-5 py-2 text-xs font-semibold !text-white !no-underline shadow-xs transition hover:bg-neutral-800 active:scale-95 whitespace-nowrap"
+            >
+              Dashboard
+            </Link>
           ) : (
-            <GoogleSignInButton
-              callbackURL="/dashboard"
-              className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.14)] px-4 py-2 text-sm font-semibold text-[var(--lagoon-deep)]"
-            />
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(true)}
+              className="inline-flex items-center justify-center rounded-full bg-[#111215] px-4 sm:px-5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-neutral-800 active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              Login
+            </button>
           )}
-          <ThemeToggle />
+        </nav>
+      </header>
+
+      {/* =========================================================================
+          SIGN IN MODAL
+         ========================================================================= */}
+      {showLoginModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setShowLoginModal(false)}
+        >
+          <div
+            className="relative w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-black/10 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-neutral-100 transition cursor-pointer text-neutral-400 hover:text-black"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
+
+            {/* Emblem */}
+            <div className="size-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4 text-amber-600">
+              <Sparkles className="size-6 text-amber-600" />
+            </div>
+
+            <h3 className="text-xl font-black text-[#111215] tracking-tight">
+              Welcome to Screenlog
+            </h3>
+            <p className="text-xs text-neutral-500 mt-1.5 mb-6 leading-relaxed">
+              The Rotten Tomatoes for software craft. Sign in to submit products, vote on consensus, and review audits.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <GoogleSignInButton
+                callbackURL="/dashboard"
+                className="w-full justify-center rounded-xl bg-black px-4 py-3 text-xs font-bold text-white transition hover:bg-neutral-800 cursor-pointer shadow-xs"
+              />
+            </div>
+
+            <p className="text-[11px] text-neutral-400 mt-4">
+              Protected by Better Auth & Convex.
+            </p>
+          </div>
         </div>
-      </nav>
-    </header>
+      )}
+    </>
   )
 }
