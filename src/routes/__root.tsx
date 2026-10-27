@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  useLocation,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { createServerFn } from '@tanstack/react-start'
@@ -15,25 +16,38 @@ import type { RouterContext } from '../lib/router-context'
 
 import appCss from '../styles.css?url'
 
-const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`
+const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;root.classList.remove('dark');root.removeAttribute('data-theme');root.style.colorScheme='light';}catch(e){}})();`
 
 const getAuthToken = createServerFn({ method: 'GET' }).handler(async () => {
-  const { getToken } = await import('../lib/auth-server')
-  return getToken()
+  try {
+    const { getToken } = await import('../lib/auth-server')
+    return (await getToken()) ?? null
+  } catch {
+    // If Convex is unreachable or times out during SSR, gracefully fallback to unauthenticated
+    return null
+  }
 })
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async ({ context }) => {
-    const token = await getAuthToken()
-    if (token) {
-      context.convexQueryClient.serverHttpClient?.setAuth(token)
-    } else {
-      context.convexQueryClient.serverHttpClient?.clearAuth()
-    }
+    try {
+      const token = await getAuthToken()
+      if (token) {
+        context.convexQueryClient.serverHttpClient?.setAuth(token)
+      } else {
+        context.convexQueryClient.serverHttpClient?.clearAuth()
+      }
 
-    return {
-      token,
-      isAuthenticated: Boolean(token),
+      return {
+        token,
+        isAuthenticated: Boolean(token),
+      }
+    } catch {
+      context.convexQueryClient.serverHttpClient?.clearAuth()
+      return {
+        token: null,
+        isAuthenticated: false,
+      }
     }
   },
   head: () => ({
@@ -61,6 +75,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootDocument() {
   const { convexQueryClient, token } = Route.useRouteContext()
+  const location = useLocation()
+  const isAuthPage = location.pathname === '/login'
 
   return (
     <ConvexBetterAuthProvider
@@ -74,9 +90,9 @@ function RootDocument() {
           <HeadContent />
         </head>
         <body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-[rgba(79,184,178,0.24)]">
-          <Header />
+          {!isAuthPage && <Header />}
           <Outlet />
-          <Footer />
+          {!isAuthPage && <Footer />}
           <TanStackDevtools
             config={{
               position: 'bottom-right',

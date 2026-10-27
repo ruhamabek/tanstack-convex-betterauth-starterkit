@@ -31,6 +31,7 @@ export const createAuth = (ctx: AuthContext) =>
     baseURL: requiredConvexEnv('SITE_URL'),
     secret: requiredConvexEnv('BETTER_AUTH_SECRET'),
     database: authComponent.adapter(ctx),
+    emailAndPassword: { enabled: true},
     socialProviders: {
       google: {
         clientId: requiredConvexEnv('GOOGLE_CLIENT_ID'),

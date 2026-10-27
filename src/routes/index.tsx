@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Sparkles, Star, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { motion, useScroll, useTransform } from 'framer-motion'
@@ -78,6 +78,12 @@ const POPULAR_APPS = [
 
 function ScreenlogHome() {
   const heroRef = useRef<HTMLDivElement>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
@@ -89,9 +95,10 @@ function ScreenlogHome() {
 
   return (
     <div
-      className="relative min-h-screen text-[#18191B] selection:bg-amber-100 overflow-x-hidden"
+      className="relative min-h-screen text-foreground selection:bg-amber-100 overflow-x-hidden"
       style={{
-        background: 'radial-gradient(ellipse 90% 65% at 50% 36%, #FAF8F2 0%, #EFECE4 55%, #E2DDD3 100%)',
+        background:
+          'radial-gradient(ellipse 90% 65% at 50% 36%, var(--canvas) 0%, var(--desk-mid) 55%, var(--muted) 100%)',
       }}
     >
       
@@ -107,7 +114,7 @@ function ScreenlogHome() {
 
         {/* Loose Paperclip (Top-Left) */}
         <motion.div
-          style={{ y: foregroundY }}
+          style={isMounted ? { y: foregroundY } : undefined}
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 0.85, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.45 }}
@@ -118,7 +125,7 @@ function ScreenlogHome() {
 
         {/* Green Thumbs-up Token (Upper-Left) */}
         <motion.div
-          style={{ y: foregroundY }}
+          style={isMounted ? { y: foregroundY } : undefined}
           initial={{ opacity: 0, y: -20, rotate: -10 }}
           animate={{ opacity: 1, y: 0, rotate: 6 }}
           transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.22 }}
@@ -238,7 +245,7 @@ function ScreenlogHome() {
 
         {/* Purple Paper Airplane Token with Paperclip (Mid-Right) */}
         <motion.div
-          style={{ y: foregroundY }}
+          style={isMounted ? { y: foregroundY } : undefined}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.35 }}
@@ -359,7 +366,7 @@ function ScreenlogHome() {
                 initial={{ opacity: 0, y: 24, filter: 'blur(3px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
-                className="relative z-20 text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-[#111215] leading-[0.98]"
+                className="relative z-20 text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-foreground leading-[0.98]"
               >
                 The Abebe
               </motion.h1>
@@ -370,7 +377,7 @@ function ScreenlogHome() {
               initial={{ opacity: 0, y: 24, filter: 'blur(3px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
-              className="relative z-20 block text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-[#111215] leading-[0.98]"
+              className="relative z-20 block text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-foreground leading-[0.98]"
             >
               The Abebe Beso
             </motion.span>
@@ -380,7 +387,7 @@ function ScreenlogHome() {
               initial={{ opacity: 0, y: 24, filter: 'blur(3px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1], delay: 0.19 }}
-              className="relative z-20 block text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-[#111215] leading-[0.98]"
+              className="relative z-20 block text-[44px] sm:text-[68px] md:text-[92px] font-[800] tracking-[-0.035em] text-foreground leading-[0.98]"
             >
               Bela software craft
             </motion.span>
@@ -389,7 +396,7 @@ function ScreenlogHome() {
 
           {/* ================= BOTTOM CENTER DESK ARTIFACTS ================= */}
           <motion.div
-            style={{ y: deskY }}
+            style={isMounted ? { y: deskY } : undefined}
             className="relative mt-10 sm:mt-14 w-full flex items-center justify-center gap-4 sm:gap-8 md:gap-10 flex-wrap z-20"
           >
             
@@ -466,10 +473,10 @@ function ScreenlogHome() {
             <Star className="size-3.5 fill-amber-500 text-amber-500" />
             <span>The Consensus Layer</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#18191B]">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             Critics dissect the craft. <br />The audience judges the utility.
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-[#5E626E]">
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             No corporate PR. No sponsored placements. Just the raw divide between how software looks and how it actually feels to use.
           </p>
         </div>
@@ -485,7 +492,7 @@ function ScreenlogHome() {
                 {/* Header info */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-[#18191B] tracking-tight">{app.name}</h3>
+                    <h3 className="text-xl font-bold text-foreground tracking-tight">{app.name}</h3>
                     <p className="text-xs font-medium text-neutral-400 mt-0.5">{app.category}</p>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
@@ -502,7 +509,7 @@ function ScreenlogHome() {
                 </p>
 
                 {/* THE ROTTEN TOMATOES DUAL METER LOCKUP */}
-                <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-[#F9F8F5] border border-black/5 mb-6">
+                <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-card-subtle border border-black/5 mb-6">
                   {/* Critics / Craft Score */}
                   <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-black/5 shadow-2xs">
                     <div className="flex items-center gap-1.5">
@@ -574,7 +581,7 @@ function ScreenlogHome() {
           THE THURSDAY DROP (Weekly Premiere Ritual)
          ========================================================================= */}
       <section id="drops" className="py-20 px-6 max-w-7xl mx-auto">
-        <div className="relative rounded-[2.5rem] bg-[#18191B] text-white p-8 sm:p-14 overflow-hidden">
+        <div className="relative rounded-[2.5rem] bg-sea-ink text-white p-8 sm:p-14 overflow-hidden">
           
           <div className="relative z-10 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3.5 py-1 text-xs font-semibold text-emerald-400 mb-4 border border-emerald-500/30">
@@ -630,7 +637,7 @@ function ScreenlogHome() {
               <span>Shareable Artifacts</span>
             </div>
             
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#18191B]">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Your public taste card.<br />Four favorites in one image.
             </h2>
             
