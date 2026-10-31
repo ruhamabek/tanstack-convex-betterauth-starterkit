@@ -1,15 +1,20 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { useFieldContext } from './context'
 
 export interface TextFieldProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue'> {
   label?: string
+  helperText?: string
+  startAdornment?: ReactNode
   showPasswordToggle?: boolean
 }
 
 export function TextField({
   label,
+  helperText,
+  startAdornment,
   type = 'text',
   placeholder,
   className = '',
@@ -40,11 +45,16 @@ export function TextField({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-semibold text-foreground mb-1.5">
+        <label htmlFor={inputId} className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
           {label}
         </label>
       )}
-      <div className="relative">
+      <div className="relative flex items-center">
+        {startAdornment && (
+          <div className="absolute left-3.5 flex items-center pointer-events-none text-neutral-400 font-semibold text-sm">
+            {startAdornment}
+          </div>
+        )}
         <input
           {...rest}
           id={inputId}
@@ -55,11 +65,11 @@ export function TextField({
           autoComplete={autoComplete}
           onBlur={field.handleBlur}
           onChange={(e) => field.handleChange(e.target.value)}
-          className={`w-full px-5 py-3 rounded-full border bg-white text-xs text-foreground placeholder:text-neutral-400 focus:outline-hidden focus:border-black/40 focus:ring-1 focus:ring-black/10 shadow-2xs transition ${
+          className={`w-full px-4 py-2.5 rounded-xl border bg-white text-sm text-foreground placeholder:text-neutral-400 focus:outline-none focus:ring-2 transition shadow-2xs ${
             errorMessage
-              ? 'border-red-400 focus:border-red-500 focus:ring-red-200'
-              : 'border-input'
-          } ${isPasswordField && showPasswordToggle ? 'pr-12' : ''} ${className}`}
+              ? 'border-red-400 focus:border-red-500 focus:ring-red-200/50'
+              : 'border-input focus:border-primary focus:ring-primary/20'
+          } ${startAdornment ? 'pl-8' : ''} ${isPasswordField && showPasswordToggle ? 'pr-12' : ''} ${className}`}
         />
         {isPasswordField && showPasswordToggle && (
           <button
@@ -73,11 +83,15 @@ export function TextField({
           </button>
         )}
       </div>
-      {errorMessage && (
-        <p className="text-[11px] font-medium text-red-600 px-4 mt-1" role="alert">
+      {errorMessage ? (
+        <p className="text-[11px] font-semibold text-rose-600 px-1 mt-1" role="alert">
           {errorMessage}
         </p>
-      )}
+      ) : helperText ? (
+        <p className="text-[11px] text-muted-foreground px-1 mt-1">
+          {helperText}
+        </p>
+      ) : null}
     </div>
   )
 }

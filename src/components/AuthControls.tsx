@@ -49,7 +49,7 @@ export function SignOutButton({ className }: { className?: string }) {
     <button
       type="button"
       disabled={isPending}
-      onClick={() => {
+       onClick={() => {
         startTransition(async () => {
           await authClient.signOut({
             fetchOptions: {

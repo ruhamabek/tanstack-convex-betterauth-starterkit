@@ -8,11 +8,13 @@ function TestForm() {
     defaultValues: {
       email: '',
       password: '',
+      notes: '',
     },
     validators: {
       onChange: z.object({
         email: z.string().email('Invalid email'),
         password: z.string().min(8, 'Password too short'),
+        notes: z.string(),
       }),
     },
     onSubmit: () => {},
@@ -37,6 +39,12 @@ function TestForm() {
           <field.TextField label="Password" type="password" placeholder="Enter password" />
         )}
       />
+      <form.AppField
+        name="notes"
+        children={(field) => (
+          <field.TextareaField label="Critique Notes" placeholder="Enter notes..." rows={4} />
+        )}
+      />
       <form.AppForm>
         <form.SubmitButton label="Sign In" />
       </form.AppForm>
@@ -45,13 +53,15 @@ function TestForm() {
 }
 
 describe('TanStack Form Composition', () => {
-  test('renders email, password fields and submit button correctly', () => {
+  test('renders email, password, and textarea fields and submit button correctly', () => {
     const html = renderToStaticMarkup(<TestForm />)
 
     expect(html).toContain('Email Address')
     expect(html).toContain('placeholder="Enter email"')
     expect(html).toContain('Password')
     expect(html).toContain('placeholder="Enter password"')
+    expect(html).toContain('Critique Notes')
+    expect(html).toContain('placeholder="Enter notes..."')
     expect(html).toContain('Sign In')
   })
 })

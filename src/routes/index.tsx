@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Sparkles, Star, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Sparkles, Star, ArrowRight, CheckCircle2, Palette, Zap } from 'lucide-react'
 import { motion, useScroll, useTransform } from 'framer-motion'
+import CriticAvatar from '../components/CriticAvatar'
 
 export const Route = createFileRoute('/')({
   component: ScreenlogHome,
@@ -11,6 +12,7 @@ const POPULAR_APPS = [
   {
     id: 'linear',
     name: 'Linear',
+    sourceType: 'product',
     category: 'Issue Tracking & Project Management',
     tagline: 'The gold standard in high-density frontend craftsmanship.',
     craftScore: 96,
@@ -31,8 +33,57 @@ const POPULAR_APPS = [
     },
   },
   {
+    id: 'dynamic-island-audio',
+    name: 'Dynamic Island Audio Expansion',
+    sourceType: 'dribbble',
+    sourceAuthor: '@peduarte',
+    category: 'Micro-interactions & Physics',
+    tagline: 'Spring fluid physics and optical typography scaling for live soundbars.',
+    craftScore: 97,
+    utilityScore: 88,
+    status: 'Certified LGTM',
+    tags: ['Spring Dynamics', 'Dribbble Shot', 'Figma Shaders'],
+    topCritic: {
+      handle: '@pixel_snob',
+      role: 'Principal Product Designer',
+      text: 'Velocity-based boundary stretch and haptic timing are an absolute masterclass in interaction physics.',
+      stars: 5.0,
+    },
+    topAudience: {
+      handle: '@fluid_designer',
+      role: 'Motion Designer',
+      text: 'Obsessed with the rubber-band dampening. Every single frame feels organic and responsive.',
+      stars: 4.8,
+    },
+  },
+  {
+    id: 'cash-card-embossing',
+    name: 'Cash Card Laser Haptics',
+    sourceType: 'mobbin',
+    sourceAuthor: 'Cash App Design Team',
+    category: 'Mobile Interaction & Haptics',
+    tagline: 'Haptic feedback card customizer with physics-based stamp engraving.',
+    craftScore: 95,
+    utilityScore: 92,
+    status: 'Certified LGTM',
+    tags: ['Mobbin Flow', 'Haptic Audio', 'Vector Canvas'],
+    topCritic: {
+      handle: '@pixel_detective',
+      role: 'Design Engineer',
+      text: 'Taking a mundane debit card onboarding step and turning it into a playground with tactile laser burns is peak software joy.',
+      stars: 5.0,
+    },
+    topAudience: {
+      handle: '@app_enthusiast',
+      role: 'Mobile Lead',
+      text: 'The attention to sound design while dragging your finger is unmatched on iOS.',
+      stars: 4.6,
+    },
+  },
+  {
     id: 'arc',
     name: 'Arc Browser (v2)',
+    sourceType: 'product',
     category: 'Web Browser & Workspace',
     tagline: 'Radical reimagining of browsing tabs and AI-assisted workflows.',
     craftScore: 92,
@@ -55,6 +106,7 @@ const POPULAR_APPS = [
   {
     id: 'raycast',
     name: 'Raycast',
+    sourceType: 'product',
     category: 'Productivity & Launcher',
     tagline: 'Extensible command bar replacing Spotlight with native speed.',
     craftScore: 98,
@@ -79,6 +131,7 @@ const POPULAR_APPS = [
 function ScreenlogHome() {
   const heroRef = useRef<HTMLDivElement>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [consensusSource, setConsensusSource] = useState<string>('all')
 
   useEffect(() => {
     setIsMounted(true)
@@ -481,9 +534,34 @@ function ScreenlogHome() {
           </p>
         </div>
 
-        {/* PRODUCT CARDS WITH DUAL METERS */}
+        {/* Specimen Source Filter Pills */}
+        <div className="flex items-center justify-center gap-2 mb-10 overflow-x-auto pb-2 scrollbar-none">
+          {[
+            { id: 'all', label: 'All Artifacts' },
+            { id: 'product', label: 'Live Products' },
+            { id: 'dribbble', label: 'Dribbble Shots' },
+            { id: 'mobbin', label: 'Mobbin Flows' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setConsensusSource(tab.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                consensusSource === tab.id
+                  ? 'bg-amber-500/15 text-amber-900 border border-amber-500/30 shadow-2xs'
+                  : 'bg-white hover:bg-black/5 text-muted-foreground border border-black/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* PRODUCT & SPECIMEN CARDS WITH DUAL METERS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {POPULAR_APPS.map((app) => (
+          {POPULAR_APPS.filter(
+            (app) => consensusSource === 'all' || (app.sourceType || 'product') === consensusSource,
+          ).map((app) => (
             <div
               key={app.id}
               className="group relative rounded-3xl bg-white p-7 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.06)] border border-black/5 transition hover:-translate-y-1.5 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] flex flex-col justify-between"
@@ -492,8 +570,18 @@ function ScreenlogHome() {
                 {/* Header info */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-foreground tracking-tight">{app.name}</h3>
-                    <p className="text-xs font-medium text-neutral-400 mt-0.5">{app.category}</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold text-foreground tracking-tight">{app.name}</h3>
+                      {app.sourceType && app.sourceType !== 'product' && (
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-800 border border-amber-500/20 uppercase">
+                          {app.sourceType}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-neutral-400 mt-0.5">
+                      {'sourceAuthor' in app && app.sourceAuthor ? `by ${app.sourceAuthor} • ` : ''}
+                      {app.category}
+                    </p>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
                     app.craftScore > 90 && app.utilityScore > 80
@@ -514,7 +602,7 @@ function ScreenlogHome() {
                   <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-black/5 shadow-2xs">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xl font-black text-amber-600">{app.craftScore}%</span>
-                      <span className="text-sm">🎨</span>
+                      <Palette className="size-4 text-emerald-600" />
                     </div>
                     <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase mt-0.5">
                       Craft Score
@@ -528,7 +616,7 @@ function ScreenlogHome() {
                       <span className={`text-xl font-black ${app.utilityScore < 60 ? 'text-rose-500' : 'text-emerald-600'}`}>
                         {app.utilityScore}%
                       </span>
-                      <span className="text-sm">🍿</span>
+                      <Zap className="size-4 text-amber-500" />
                     </div>
                     <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase mt-0.5">
                       Utility Score
@@ -549,16 +637,18 @@ function ScreenlogHome() {
                 {/* Top Takes Preview */}
                 <div className="space-y-3 border-t border-neutral-100 pt-4">
                   <div className="text-[11px] text-neutral-700 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/50">
-                    <span className="font-semibold text-amber-900 block mb-0.5">
-                      Critic Take ({app.topCritic.handle}):
-                    </span>
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-900 mb-1">
+                      <CriticAvatar seed={app.topCritic.handle} size="xs" rounded="full" />
+                      <span>Critic Take ({app.topCritic.handle}):</span>
+                    </div>
                     "{app.topCritic.text}"
                   </div>
 
                   <div className="text-[11px] text-neutral-700 bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
-                    <span className="font-semibold text-neutral-800 block mb-0.5">
-                      Audience Take ({app.topAudience.handle}):
-                    </span>
+                    <div className="flex items-center gap-1.5 font-semibold text-neutral-800 mb-1">
+                      <CriticAvatar seed={app.topAudience.handle} size="xs" rounded="full" />
+                      <span>Audience Take ({app.topAudience.handle}):</span>
+                    </div>
                     "{app.topAudience.text}"
                   </div>
                 </div>
