@@ -11,7 +11,7 @@ import CriticAvatar from '../CriticAvatar'
 export interface CritiqueDiscussionDrawerProps {
   isOpen: boolean
   onClose: () => void
-  review: (Doc<'reviews'> & { app?: Doc<'apps'> | null }) | null
+  review: (Doc<'reviews'> & { app?: Doc<'apps'> | null; authorAvatarUrl?: string | null }) | null
   currentProfile?: Doc<'profiles'> | null
 }
 
@@ -137,7 +137,12 @@ export default function CritiqueDiscussionDrawer({
             {/* Critique Topic Card (Sticky Anchor) */}
             <div className="p-4 border-b border-black/10 bg-[#FAF8F3] shrink-0">
               <div className="flex items-center gap-2 mb-2">
-                <CriticAvatar seed={review.authorHandle} size="sm" rounded="squircle" />
+                <CriticAvatar
+                  avatarUrl={review.authorAvatarUrl}
+                  seed={review.authorHandle}
+                  size="sm"
+                  rounded="squircle"
+                />
                 <span className="text-xs font-bold text-foreground">
                   @{review.authorHandle}
                 </span>
@@ -273,6 +278,7 @@ function RealtimeComments({ reviewId }: { reviewId: Id<'reviews'> }) {
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2">
               <CriticAvatar
+                avatarUrl={(comment as any).authorAvatarUrl}
                 seed={comment.authorHandle}
                 size="sm"
                 rounded="squircle"

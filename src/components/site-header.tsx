@@ -1,7 +1,15 @@
 import { Plus, Sparkles } from 'lucide-react'
+import { useLocation } from '@tanstack/react-router'
 import { SidebarTrigger } from './ui/sidebar'
  
 export function SiteHeader() {
+  const location = useLocation()
+  const pageTitle = location.pathname.startsWith('/feed')
+    ? 'Community Feed'
+    : location.pathname.startsWith('/dashboard')
+      ? 'Critic Profile'
+      : 'Screenlog'
+
   const triggerOpenEvaluate = () => {
     window.dispatchEvent(new CustomEvent('screenlog:open-evaluate'))
   }
@@ -16,6 +24,9 @@ export function SiteHeader() {
       <div className="flex items-center gap-3">
         <SidebarTrigger />
         <div className="h-4 w-px bg-black/10" />
+        <span className="text-xs font-mono font-bold tracking-wider uppercase text-neutral-600">
+          {pageTitle}
+        </span>
       </div>
 
       {/* Right: Quick Action CTAs for mobile & tablet */}

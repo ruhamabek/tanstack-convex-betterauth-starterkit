@@ -6,6 +6,7 @@ import {
   Award,
   User,
   Plus,
+  Globe,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import type { Doc } from '../../convex/_generated/dataModel'
@@ -24,7 +25,12 @@ import Logo from './Logo'
 const navData = {
   navMain: [
     {
-      title: 'Profile Feed',
+      title: 'Home Feed',
+      url: '/feed',
+      icon: Home,
+    },
+    {
+      title: 'Profile',
       url: '/dashboard',
       icon: User,
     },
@@ -44,9 +50,9 @@ const navData = {
       icon: Award,
     },
     {
-      title: 'Home Showcase',
+      title: 'Public Showcase',
       url: '/',
-      icon: Home,
+      icon: Globe,
     },
   ],
 }

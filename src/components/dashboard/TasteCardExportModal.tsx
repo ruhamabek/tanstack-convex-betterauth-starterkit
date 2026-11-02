@@ -19,7 +19,7 @@ import { proxyImageAsDataUrl } from '../../lib/imageProxy'
 export interface TasteCardExportModalProps {
   isOpen: boolean
   onClose: () => void
-  review: (Doc<'reviews'> & { app?: Doc<'apps'> | null }) | null
+  review: (Doc<'reviews'> & { app?: Doc<'apps'> | null; authorAvatarUrl?: string | null }) | null
 }
 
 // Canvas text wrapping helper
@@ -627,7 +627,12 @@ export default function TasteCardExportModal({
               {/* Top Row: Critic Avatar, Handle & Scope Tag */}
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2.5">
-                  <CriticAvatar seed={review.authorHandle} size="md" rounded="squircle" />
+                  <CriticAvatar
+                    avatarUrl={review.authorAvatarUrl}
+                    seed={review.authorHandle}
+                    size="md"
+                    rounded="squircle"
+                  />
                   <div>
                     <h4 className="font-black text-sm sm:text-base text-foreground leading-tight">
                       @{review.authorHandle}

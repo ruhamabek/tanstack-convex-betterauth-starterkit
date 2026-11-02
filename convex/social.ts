@@ -79,7 +79,26 @@ export const listComments = query({
       .withIndex('by_review', (q) => q.eq('reviewId', args.reviewId))
       .collect()
 
-    return comments.sort((a, b) => a.createdAt - b.createdAt)
+    const enriched = await Promise.all(
+      comments.map(async (c) => {
+        let profile = await ctx.db
+          .query('profiles')
+          .withIndex('by_user', (q: any) => q.eq('userId', c.userId))
+          .first()
+        if (!profile && c.authorHandle) {
+          profile = await ctx.db
+            .query('profiles')
+            .withIndex('by_handle', (q: any) => q.eq('handle', c.authorHandle))
+            .first()
+        }
+        return {
+          ...c,
+          authorAvatarUrl: profile?.avatarUrl || null,
+        }
+      }),
+    )
+
+    return enriched.sort((a, b) => a.createdAt - b.createdAt)
   },
 })
 

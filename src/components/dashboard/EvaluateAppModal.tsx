@@ -30,6 +30,7 @@ export interface EvaluateAppModalProps {
   apps: Doc<'apps'>[]
   profile?: Doc<'profiles'> | null
   initialAppId?: Id<'apps'> | string
+  initialHeadline?: string
   counterAppraisalReview?: {
     id: Id<'reviews'>
     authorHandle: string
@@ -86,6 +87,7 @@ export default function EvaluateAppModal({
   apps,
   profile,
   initialAppId,
+  initialHeadline,
   counterAppraisalReview,
   onSubmit,
 }: EvaluateAppModalProps) {
@@ -113,7 +115,7 @@ export default function EvaluateAppModal({
       videoInputUrl: '',
       craftScore: 94,
       utilityScore: 90,
-      headline: '',
+      headline: initialHeadline || '',
       quote: '',
     },
     onSubmit: async ({ value }) => {
@@ -212,8 +214,11 @@ export default function EvaluateAppModal({
           form.setFieldValue('category', found.category)
         }
       }
+      if (initialHeadline !== undefined) {
+        form.setFieldValue('headline', initialHeadline)
+      }
     }
-  }, [isOpen, initialAppId, apps])
+  }, [isOpen, initialAppId, initialHeadline, apps])
 
   // When an existing app is clicked from the catalog
   const handleSelectExistingApp = (app: Doc<'apps'>) => {
@@ -312,33 +317,41 @@ export default function EvaluateAppModal({
         {/* Header */}
         <DialogHeader className="pb-5 border-b border-black/10">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
+            <span
+              className={`flex size-10 items-center justify-center rounded-xl border ${
+                counterAppraisalReview
+                  ? 'bg-neutral-100 text-neutral-800 border-black/10'
+                  : 'bg-emerald-500/10 text-emerald-800 border-emerald-500/20'
+              }`}
+            >
               {counterAppraisalReview ? (
-                <Repeat2 className="size-5 text-amber-700" />
+                <Repeat2 className="size-5 text-neutral-700" />
               ) : (
                 <Award className="size-5 text-emerald-700" />
               )}
             </span>
             <div>
               <DialogTitle className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-                {counterAppraisalReview ? 'File Counter-Appraisal' : 'Evaluate Software Product'}
+                {counterAppraisalReview
+                  ? 'Repost with your thoughts'
+                  : 'Evaluate Software Product'}
               </DialogTitle>
               <DialogDescription>
                 {counterAppraisalReview
-                  ? 'Submit your divergent craft & utility appraisal in response to another critic.'
+                  ? 'Share your perspective and scores alongside this critique.'
                   : 'Evaluate living software applications or dissect a specific feature surface.'}
               </DialogDescription>
             </div>
           </div>
 
           {counterAppraisalReview && (
-            <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-left">
-              <div className="flex items-center gap-1.5 text-amber-900 font-bold mb-0.5">
-                <Repeat2 className="size-3.5 text-amber-700 shrink-0" />
-                <span>Counter-Appraisal Target</span>
+            <div className="mt-3 p-3 rounded-xl bg-neutral-100 border border-black/10 text-xs text-left">
+              <div className="flex items-center gap-1.5 text-neutral-900 font-bold mb-0.5">
+                <Repeat2 className="size-3.5 text-neutral-600 shrink-0" />
+                <span>Quoted Critique</span>
               </div>
-              <p className="text-amber-800 text-[11px] leading-relaxed">
-                Replying to <span className="font-bold">@{counterAppraisalReview.authorHandle}</span>
+              <p className="text-neutral-600 text-[11px] leading-relaxed">
+                Replying to <span className="font-bold text-neutral-900">@{counterAppraisalReview.authorHandle}</span>
                 : &ldquo;{counterAppraisalReview.headline}&rdquo; ({counterAppraisalReview.craftScore}% Craft / {counterAppraisalReview.utilityScore}% Utility).
               </p>
             </div>

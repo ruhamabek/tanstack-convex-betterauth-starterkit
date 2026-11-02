@@ -38,6 +38,19 @@ async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: str
     appMediaUrl = (await ctx.storage.getUrl(app.mediaStorageId)) || undefined
   }
 
+  // Look up author's profile to resolve custom avatar
+  let authorProfile = await ctx.db
+    .query('profiles')
+    .withIndex('by_user', (q: any) => q.eq('userId', review.userId))
+    .first()
+
+  if (!authorProfile && review.authorHandle) {
+    authorProfile = await ctx.db
+      .query('profiles')
+      .withIndex('by_handle', (q: any) => q.eq('handle', review.authorHandle))
+      .first()
+  }
+
   // Social interactions
   const reactions = await ctx.db
     .query('reviewReactions')
@@ -63,15 +76,27 @@ async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: str
     const parent = await ctx.db.get(review.parentReviewId)
     if (parent) {
       const parentApp = await ctx.db.get(parent.appId)
+      let parentProfile = await ctx.db
+        .query('profiles')
+        .withIndex('by_user', (q: any) => q.eq('userId', parent.userId))
+        .first()
+      if (!parentProfile && parent.authorHandle) {
+        parentProfile = await ctx.db
+          .query('profiles')
+          .withIndex('by_handle', (q: any) => q.eq('handle', parent.authorHandle))
+          .first()
+      }
       parentReview = {
         ...parent,
         app: parentApp,
+        authorAvatarUrl: parentProfile?.avatarUrl || null,
       }
     }
   }
 
   return {
     ...review,
+    authorAvatarUrl: authorProfile?.avatarUrl || null,
     mediaUrl,
     app: app ? { ...app, mediaUrl: appMediaUrl } : null,
     endorseCount: reactions.length,
@@ -82,6 +107,28 @@ async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: str
     parentReview,
   }
 }
+
+export const listCommunityFeed = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOptionalAuthUser(ctx)
+    const currentUserId = user ? String(user._id) : null
+
+    const limit = args.limit || 80
+    const reviews = await ctx.db
+      .query('reviews')
+      .order('desc')
+      .take(limit)
+
+    const enriched = await Promise.all(
+      reviews.map((r) => enrichReview(ctx, r, currentUserId))
+    )
+
+    return enriched
+  },
+})
 
 export const listByApp = query({
   args: {

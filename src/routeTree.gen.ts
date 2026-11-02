@@ -13,6 +13,7 @@ import { Route as StageshowRouteImport } from './routes/stageshow'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedFeedRouteImport } from './routes/_protected.feed'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected.dashboard'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedFeedRoute = ProtectedFeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/stageshow': typeof StageshowRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/feed': typeof ProtectedFeedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -58,6 +65,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/stageshow': typeof StageshowRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/feed': typeof ProtectedFeedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -67,13 +75,20 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/stageshow': typeof StageshowRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
+  '/_protected/feed': typeof ProtectedFeedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/stageshow' | '/dashboard' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/stageshow'
+    | '/dashboard'
+    | '/feed'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/stageshow' | '/dashboard' | '/api/auth/$'
+  to: '/' | '/login' | '/stageshow' | '/dashboard' | '/feed' | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -81,6 +96,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/stageshow'
     | '/_protected/dashboard'
+    | '/_protected/feed'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -122,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/feed': {
+      id: '/_protected/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof ProtectedFeedRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/dashboard': {
       id: '/_protected/dashboard'
       path: '/dashboard'
@@ -141,10 +164,12 @@ declare module '@tanstack/react-router' {
 
 interface ProtectedRouteChildren {
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
+  ProtectedFeedRoute: typeof ProtectedFeedRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardRoute: ProtectedDashboardRoute,
+  ProtectedFeedRoute: ProtectedFeedRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

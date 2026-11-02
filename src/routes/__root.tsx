@@ -83,8 +83,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootDocument() {
   const { convexQueryClient, token } = Route.useRouteContext()
   const location = useLocation()
-  const isStandaloneApp =
-    location.pathname === '/login' || location.pathname.startsWith('/dashboard')
+  const isPublicMarketingPage =
+    location.pathname === '/' || location.pathname === '/stageshow'
+  const isStandaloneApp = !isPublicMarketingPage
 
   return (
     <ConvexBetterAuthProvider

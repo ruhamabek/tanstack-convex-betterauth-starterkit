@@ -5,8 +5,7 @@ import {
   Heart,
   Bookmark,
   Share,
-  MoreHorizontal,
-  Palette,
+   Palette,
   ArrowUpRight,
   Pencil,
   Copy,
@@ -20,8 +19,9 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import CriticAvatar from '../CriticAvatar'
 
 export type ReviewWithAppAndSocial = Doc<'reviews'> & {
+  authorAvatarUrl?: string | null
   app?: Doc<'apps'> | null
-  parentReview?: (Doc<'reviews'> & { app?: Doc<'apps'> | null }) | null
+  parentReview?: (Doc<'reviews'> & { app?: Doc<'apps'> | null; authorAvatarUrl?: string | null }) | null
   endorseCount?: number
   commentCount?: number
   bookmarkCount?: number
@@ -204,6 +204,7 @@ export default function ScorecardReviewCard({
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <CriticAvatar
+            avatarUrl={review.authorAvatarUrl}
             seed={review.authorHandle}
             size="md"
             rounded="squircle"
@@ -219,13 +220,7 @@ export default function ScorecardReviewCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          className="size-8 rounded-full hover:bg-black/5 flex items-center justify-center text-neutral-400 hover:text-foreground transition cursor-pointer shrink-0"
-          aria-label="More options"
-        >
-          <MoreHorizontal className="size-4" />
-        </button>
+        
       </div>
 
       {/* Tags / Scope Row */}
@@ -268,6 +263,7 @@ export default function ScorecardReviewCard({
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2">
               <CriticAvatar
+                avatarUrl={review.parentReview.authorAvatarUrl}
                 seed={review.parentReview.authorHandle}
                 size="xs"
                 rounded="squircle"
@@ -275,8 +271,8 @@ export default function ScorecardReviewCard({
               <span className="text-xs font-bold text-foreground">
                 @{review.parentReview.authorHandle}
               </span>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 bg-amber-500/15 px-1.5 py-0.2 rounded font-bold">
-                Counter-Appraised
+              <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 bg-neutral-200/60 px-1.5 py-0.2 rounded font-bold">
+                Quoted Take
               </span>
             </div>
 
@@ -466,15 +462,15 @@ export default function ScorecardReviewCard({
             </span>
           </button>
 
-          {/* Repost / Counter-Appraise Dropdown */}
+          {/* Repost Dropdown */}
           <div className="relative" ref={repeatMenuRef}>
             <button
               type="button"
               onClick={() => setShowRepeatMenu(!showRepeatMenu)}
-              className="flex items-center gap-1.5 hover:text-emerald-600 transition cursor-pointer group/act"
-              title="Repost or counter-appraise"
+              className="flex items-center gap-1.5 hover:text-neutral-900 transition cursor-pointer group/act"
+              title="Repost"
             >
-              <div className="p-1 rounded-full group-hover/act:bg-emerald-50 transition">
+              <div className="p-1 rounded-full group-hover/act:bg-neutral-100 transition">
                 <Repeat2 className="size-4" />
               </div>
               <span className="text-xs font-medium">
@@ -483,14 +479,14 @@ export default function ScorecardReviewCard({
             </button>
 
             {showRepeatMenu && (
-              <div className="absolute left-0 bottom-full mb-2 w-52 bg-white rounded-2xl shadow-xl border border-black/10 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 bottom-full mb-2 w-56 bg-white rounded-2xl shadow-xl border border-black/10 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
                 <button
                   type="button"
                   onClick={handleRepost}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-50 flex items-center gap-2 transition cursor-pointer"
+                  className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-100 flex items-center gap-2.5 transition cursor-pointer"
                 >
-                  <Repeat2 className="size-3.5 text-emerald-600" />
-                  <span>Repost Critique</span>
+                  <Repeat2 className="size-4 text-neutral-600" />
+                  <span>Repost</span>
                 </button>
 
                 <button
@@ -499,15 +495,10 @@ export default function ScorecardReviewCard({
                     setShowRepeatMenu(false)
                     onCounterAppraise?.(review)
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-amber-900 hover:bg-amber-500/10 flex items-center gap-2 transition cursor-pointer"
+                  className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-100 flex items-center gap-2.5 transition cursor-pointer"
                 >
-                  <Sparkles className="size-3.5 text-amber-700" />
-                  <div>
-                    <span className="block leading-tight">Counter-Appraise</span>
-                    <span className="text-[10px] font-normal text-amber-700 block">
-                      Log divergent Craft &amp; Utility
-                    </span>
-                  </div>
+                  <Repeat2 className="size-4 text-neutral-600" />
+                  <span>Repost with your thoughts</span>
                 </button>
               </div>
             )}

@@ -29,7 +29,9 @@ export function NavMain({ items }: NavMainProps) {
             ? item.isActive
             : item.url === '/dashboard'
               ? location.pathname.startsWith('/dashboard')
-              : location.pathname === item.url
+              : item.url === '/feed'
+                ? location.pathname.startsWith('/feed')
+                : location.pathname === item.url
 
         return (
           <SidebarMenuItem key={item.title}>
