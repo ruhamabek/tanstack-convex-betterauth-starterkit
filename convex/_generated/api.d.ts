@@ -14,6 +14,7 @@ import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as profiles from "../profiles.js";
 import type * as reviews from "../reviews.js";
+import type * as social from "../social.js";
 import type * as storage from "../storage.js";
 import type * as todos from "../todos.js";
 
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   profiles: typeof profiles;
   reviews: typeof reviews;
+  social: typeof social;
   storage: typeof storage;
   todos: typeof todos;
 }>;

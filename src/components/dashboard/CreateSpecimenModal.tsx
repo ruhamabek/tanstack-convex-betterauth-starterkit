@@ -22,6 +22,7 @@ import { api } from '../../../convex/_generated/api'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/Dialog'
 import { unfurlUrlFn, type SpecimenPlatform, type UnfurledMetadata } from '../../lib/unfurl'
 import { compressImageToWebP } from '../../lib/imageCompression'
+import { proxyImageAsDataUrl } from '../../lib/imageProxy'
 import type { Id } from '../../../convex/_generated/dataModel'
 
 export type SourceType = 'product' | 'dribbble' | 'mobbin' | 'pinterest' | 'figma'
@@ -276,6 +277,26 @@ export default function CreateSpecimenModal({
         }
         const json = await uploadRes.json()
         uploadedStorageId = json.storageId
+      } else if (mediaUrl && (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://'))) {
+        try {
+          const proxiedDataUrl = await proxyImageAsDataUrl({ data: mediaUrl })
+          if (proxiedDataUrl && proxiedDataUrl.startsWith('data:')) {
+            const blobRes = await fetch(proxiedDataUrl)
+            const blob = await blobRes.blob()
+            const postUrl = await generateUploadUrl({})
+            const uploadRes = await fetch(postUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': blob.type || 'image/webp' },
+              body: blob,
+            })
+            if (uploadRes.ok) {
+              const json = await uploadRes.json()
+              uploadedStorageId = json.storageId
+            }
+          }
+        } catch (e) {
+          console.warn('Could not ingest remote image to Convex storage, falling back to direct URL:', e)
+        }
       }
 
       const res = await onSubmit({

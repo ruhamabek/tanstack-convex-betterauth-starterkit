@@ -1,18 +1,23 @@
 import { useState, useMemo } from 'react'
 import { Sparkles, Plus } from 'lucide-react'
-import type { Doc } from '../../../convex/_generated/dataModel'
-import ScorecardReviewCard from './ScorecardReviewCard'
+import ScorecardReviewCard, { type ReviewWithAppAndSocial } from './ScorecardReviewCard'
 
 export type VerdictFilter = 'all' | 'lgtm' | 'mixed' | 'rotten' | 'specimen'
 
 export interface CritiqueFeedSectionProps {
-  reviews: Doc<'reviews'>[]
+  reviews: ReviewWithAppAndSocial[]
   onOpenCritiqueModal: () => void
+  onOpenDiscussion?: (review: ReviewWithAppAndSocial) => void
+  onExportTasteCard?: (review: ReviewWithAppAndSocial) => void
+  onCounterAppraise?: (review: ReviewWithAppAndSocial) => void
 }
 
 export default function CritiqueFeedSection({
   reviews,
   onOpenCritiqueModal,
+  onOpenDiscussion,
+  onExportTasteCard,
+  onCounterAppraise,
 }: CritiqueFeedSectionProps) {
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>('all')
 
@@ -91,7 +96,13 @@ export default function CritiqueFeedSection({
       ) : (
         <div className="flex flex-col gap-4 p-3.5 sm:p-5">
           {filteredReviews.map((review) => (
-            <ScorecardReviewCard key={review._id} review={review} />
+            <ScorecardReviewCard
+              key={review._id}
+              review={review}
+              onOpenDiscussion={onOpenDiscussion}
+              onExportTasteCard={onExportTasteCard}
+              onCounterAppraise={onCounterAppraise}
+            />
           ))}
         </div>
       )}

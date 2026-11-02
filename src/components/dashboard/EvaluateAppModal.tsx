@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   Layers,
   Pencil,
+  Repeat2,
 } from 'lucide-react'
 import { useSelector } from '@tanstack/react-form'
 import { useConvexMutation } from '@convex-dev/react-query'
@@ -29,6 +30,13 @@ export interface EvaluateAppModalProps {
   apps: Doc<'apps'>[]
   profile?: Doc<'profiles'> | null
   initialAppId?: Id<'apps'> | string
+  counterAppraisalReview?: {
+    id: Id<'reviews'>
+    authorHandle: string
+    craftScore: number
+    utilityScore: number
+    headline: string
+  } | null
   onSubmit: (args: {
     appName: string
     websiteUrl: string
@@ -43,6 +51,7 @@ export interface EvaluateAppModalProps {
     utilityScore: number
     headline: string
     quote: string
+    parentReviewId?: Id<'reviews'>
   }) => Promise<void>
 }
 
@@ -77,6 +86,7 @@ export default function EvaluateAppModal({
   apps,
   profile,
   initialAppId,
+  counterAppraisalReview,
   onSubmit,
 }: EvaluateAppModalProps) {
   const generateUploadUrl = useConvexMutation(api.storage.generateUploadUrl)
@@ -166,6 +176,7 @@ export default function EvaluateAppModal({
           utilityScore: value.utilityScore,
           headline: finalHeadline,
           quote: finalQuote,
+          parentReviewId: counterAppraisalReview?.id,
         })
 
         onClose()
@@ -302,17 +313,36 @@ export default function EvaluateAppModal({
         <DialogHeader className="pb-5 border-b border-black/10">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
-              <Award className="size-5 text-emerald-700" />
+              {counterAppraisalReview ? (
+                <Repeat2 className="size-5 text-amber-700" />
+              ) : (
+                <Award className="size-5 text-emerald-700" />
+              )}
             </span>
             <div>
               <DialogTitle className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-                Evaluate Software Product
+                {counterAppraisalReview ? 'File Counter-Appraisal' : 'Evaluate Software Product'}
               </DialogTitle>
               <DialogDescription>
-                Evaluate living software applications or dissect a specific feature surface.
+                {counterAppraisalReview
+                  ? 'Submit your divergent craft & utility appraisal in response to another critic.'
+                  : 'Evaluate living software applications or dissect a specific feature surface.'}
               </DialogDescription>
             </div>
           </div>
+
+          {counterAppraisalReview && (
+            <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-left">
+              <div className="flex items-center gap-1.5 text-amber-900 font-bold mb-0.5">
+                <Repeat2 className="size-3.5 text-amber-700 shrink-0" />
+                <span>Counter-Appraisal Target</span>
+              </div>
+              <p className="text-amber-800 text-[11px] leading-relaxed">
+                Replying to <span className="font-bold">@{counterAppraisalReview.authorHandle}</span>
+                : &ldquo;{counterAppraisalReview.headline}&rdquo; ({counterAppraisalReview.craftScore}% Craft / {counterAppraisalReview.utilityScore}% Utility).
+              </p>
+            </div>
+          )}
         </DialogHeader>
 
         {submitError && (

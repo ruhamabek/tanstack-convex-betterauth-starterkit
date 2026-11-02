@@ -297,6 +297,7 @@ export const upsertAppAndEvaluate = mutation({
     utilityScore: v.number(),
     headline: v.string(),
     quote: v.string(),
+    parentReviewId: v.optional(v.id('reviews')),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx)
@@ -428,6 +429,7 @@ export const upsertAppAndEvaluate = mutation({
       quote: args.quote.trim(),
       verdict,
       isVerified: true,
+      parentReviewId: args.parentReviewId,
       createdAt: now,
       updatedAt: now,
     })

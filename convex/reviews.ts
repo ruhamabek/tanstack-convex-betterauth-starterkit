@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireAuthUser, getOptionalAuthUser } from './helpers'
-import type { Id } from './_generated/dataModel'
+import type { Id, Doc } from './_generated/dataModel'
 
 function computeVerdict(craft: number, utility: number): string {
   if (craft >= 90 && utility >= 80) {
@@ -26,17 +26,81 @@ function computeAppStatus(craft: number, utility: number): string {
   return 'Rotten'
 }
 
+// Helper to enrich a review with storage URLs, app info, social reaction metrics, and parent quote review
+async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: string | null) {
+  const app = await ctx.db.get(review.appId)
+  let mediaUrl = review.mediaUrl
+  if (!mediaUrl && review.mediaStorageId) {
+    mediaUrl = (await ctx.storage.getUrl(review.mediaStorageId)) || undefined
+  }
+  let appMediaUrl = app?.mediaUrl
+  if (!appMediaUrl && app?.mediaStorageId) {
+    appMediaUrl = (await ctx.storage.getUrl(app.mediaStorageId)) || undefined
+  }
+
+  // Social interactions
+  const reactions = await ctx.db
+    .query('reviewReactions')
+    .withIndex('by_review', (q: any) => q.eq('reviewId', review._id))
+    .collect()
+
+  const comments = await ctx.db
+    .query('reviewComments')
+    .withIndex('by_review', (q: any) => q.eq('reviewId', review._id))
+    .collect()
+
+  const bookmarks = await ctx.db
+    .query('reviewBookmarks')
+    .withIndex('by_review', (q: any) => q.eq('reviewId', review._id))
+    .collect()
+
+  const isEndorsed = currentUserId ? reactions.some((r: any) => r.userId === currentUserId) : false
+  const isBookmarked = currentUserId ? bookmarks.some((b: any) => b.userId === currentUserId) : false
+
+  // Parent review resolution if counter-appraisal / quote critique
+  let parentReview = null
+  if (review.parentReviewId) {
+    const parent = await ctx.db.get(review.parentReviewId)
+    if (parent) {
+      const parentApp = await ctx.db.get(parent.appId)
+      parentReview = {
+        ...parent,
+        app: parentApp,
+      }
+    }
+  }
+
+  return {
+    ...review,
+    mediaUrl,
+    app: app ? { ...app, mediaUrl: appMediaUrl } : null,
+    endorseCount: reactions.length,
+    commentCount: comments.length,
+    bookmarkCount: bookmarks.length,
+    isEndorsed,
+    isBookmarked,
+    parentReview,
+  }
+}
+
 export const listByApp = query({
   args: {
     appId: v.id('apps'),
   },
   handler: async (ctx, args) => {
+    const user = await getOptionalAuthUser(ctx)
+    const currentUserId = user ? String(user._id) : null
+
     const reviews = await ctx.db
       .query('reviews')
       .withIndex('by_app', (q) => q.eq('appId', args.appId))
       .collect()
 
-    return reviews.sort((a, b) => b.createdAt - a.createdAt)
+    const enriched = await Promise.all(
+      reviews.map((r) => enrichReview(ctx, r, currentUserId))
+    )
+
+    return enriched.sort((a, b) => b.createdAt - a.createdAt)
   },
 })
 
@@ -45,10 +109,11 @@ export const listByUser = query({
     userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let targetUserId = args.userId
+    const user = await getOptionalAuthUser(ctx)
+    const currentUserId = user ? String(user._id) : null
 
+    let targetUserId = args.userId
     if (!targetUserId) {
-      const user = await getOptionalAuthUser(ctx)
       if (!user) {
         return []
       }
@@ -60,24 +125,9 @@ export const listByUser = query({
       .withIndex('by_user', (q) => q.eq('userId', targetUserId!))
       .collect()
 
-    // Enrich with app details and storage URLs for card rendering
+    // Enrich with app details, storage URLs, and social counters
     const enriched = await Promise.all(
-      reviews.map(async (review) => {
-        const app = await ctx.db.get(review.appId)
-        let mediaUrl = review.mediaUrl
-        if (!mediaUrl && review.mediaStorageId) {
-          mediaUrl = (await ctx.storage.getUrl(review.mediaStorageId)) || undefined
-        }
-        let appMediaUrl = app?.mediaUrl
-        if (!appMediaUrl && app?.mediaStorageId) {
-          appMediaUrl = (await ctx.storage.getUrl(app.mediaStorageId)) || undefined
-        }
-        return {
-          ...review,
-          mediaUrl,
-          app: app ? { ...app, mediaUrl: appMediaUrl } : null,
-        }
-      })
+      reviews.map((r) => enrichReview(ctx, r, currentUserId))
     )
 
     return enriched.sort((a, b) => b.createdAt - a.createdAt)
@@ -111,6 +161,7 @@ export const submitReview = mutation({
     utilityScore: v.number(),
     headline: v.string(),
     quote: v.string(),
+    parentReviewId: v.optional(v.id('reviews')),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx)
@@ -160,6 +211,7 @@ export const submitReview = mutation({
         headline,
         quote,
         verdict,
+        parentReviewId: args.parentReviewId !== undefined ? args.parentReviewId : existing.parentReviewId,
         authorHandle: profile.handle,
         authorDisplayName: profile.displayName,
         authorRole: profile.role,
@@ -178,6 +230,7 @@ export const submitReview = mutation({
         headline,
         quote,
         verdict,
+        parentReviewId: args.parentReviewId,
         isVerified: true,
         createdAt: now,
         updatedAt: now,

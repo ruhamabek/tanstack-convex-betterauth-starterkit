@@ -77,10 +77,47 @@ export default defineSchema({
     quote: v.string(), // Authentic critique body
     verdict: v.string(), // "lgtm" | "mixed" | "rotten"
     isVerified: v.boolean(),
+    parentReviewId: v.optional(v.id('reviews')), // For Counter-Appraisals / Quote Critiques
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_app', ['appId'])
     .index('by_user', ['userId'])
-    .index('by_app_and_user', ['appId', 'userId']),
+    .index('by_app_and_user', ['appId', 'userId'])
+    .index('by_parent_review', ['parentReviewId']),
+
+  // Review Endorsements (Heart / Upvote)
+  reviewReactions: defineTable({
+    reviewId: v.id('reviews'),
+    userId: v.string(),
+    type: v.string(), // "endorse"
+    createdAt: v.number(),
+  })
+    .index('by_review', ['reviewId'])
+    .index('by_review_and_user', ['reviewId', 'userId'])
+    .index('by_user', ['userId']),
+
+  // Specimen Bookmarking & Personal Collections
+  reviewBookmarks: defineTable({
+    reviewId: v.id('reviews'),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_review', ['reviewId'])
+    .index('by_user', ['userId'])
+    .index('by_review_and_user', ['reviewId', 'userId']),
+
+  // Critique Discussion Drawer (Threaded Comments)
+  reviewComments: defineTable({
+    reviewId: v.id('reviews'),
+    userId: v.string(),
+    authorHandle: v.string(),
+    authorDisplayName: v.string(),
+    authorRole: v.string(),
+    authorBadge: v.optional(v.string()),
+    content: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_review', ['reviewId'])
+    .index('by_user', ['userId']),
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   MessageSquare,
   Repeat2,
@@ -7,16 +7,33 @@ import {
   Share,
   MoreHorizontal,
   Palette,
-   ArrowUpRight,
+  ArrowUpRight,
   Pencil,
+  Copy,
+  Check,
+  Share2,
+  Sparkles,
 } from 'lucide-react'
+import { useConvexMutation } from '@convex-dev/react-query'
+import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import CriticAvatar from '../CriticAvatar'
 
-export type ReviewWithApp = Doc<'reviews'> & { app?: Doc<'apps'> | null }
+export type ReviewWithAppAndSocial = Doc<'reviews'> & {
+  app?: Doc<'apps'> | null
+  parentReview?: (Doc<'reviews'> & { app?: Doc<'apps'> | null }) | null
+  endorseCount?: number
+  commentCount?: number
+  bookmarkCount?: number
+  isEndorsed?: boolean
+  isBookmarked?: boolean
+}
 
 export interface ScorecardReviewCardProps {
-  review: ReviewWithApp
+  review: ReviewWithAppAndSocial
+  onOpenDiscussion?: (review: ReviewWithAppAndSocial) => void
+  onExportTasteCard?: (review: ReviewWithAppAndSocial) => void
+  onCounterAppraise?: (review: ReviewWithAppAndSocial) => void
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -53,10 +70,121 @@ function formatSourceLabel(sourceType?: string): string {
   }
 }
 
-export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps) {
+export default function ScorecardReviewCard({
+  review,
+  onOpenDiscussion,
+  onExportTasteCard,
+  onCounterAppraise,
+}: ScorecardReviewCardProps) {
   const relativeDate = formatRelativeTime(review.createdAt)
-  const [liked, setLiked] = useState(false)
-  const [bookmarked, setBookmarked] = useState(false)
+
+  // Social mutations
+  const toggleEndorseMutation = useConvexMutation(api.social.toggleEndorse)
+  const toggleBookmarkMutation = useConvexMutation(api.social.toggleBookmark)
+
+  // Optimistic UI state
+  const [liked, setLiked] = useState(Boolean(review.isEndorsed))
+  const [likeCount, setLikeCount] = useState(review.endorseCount ?? 0)
+  const [bookmarked, setBookmarked] = useState(Boolean(review.isBookmarked))
+  const [likePopping, setLikePopping] = useState(false)
+
+  // Menus state
+  const [showShareMenu, setShowShareMenu] = useState(false)
+  const [showRepeatMenu, setShowRepeatMenu] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [repostToast, setRepostToast] = useState(false)
+
+  const shareMenuRef = useRef<HTMLDivElement>(null)
+  const repeatMenuRef = useRef<HTMLDivElement>(null)
+
+  // Keep synced if review props update
+  useEffect(() => {
+    if (review.isEndorsed !== undefined) setLiked(review.isEndorsed)
+    if (review.endorseCount !== undefined) setLikeCount(review.endorseCount)
+    if (review.isBookmarked !== undefined) setBookmarked(review.isBookmarked)
+  }, [review.isEndorsed, review.endorseCount, review.isBookmarked])
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        shareMenuRef.current &&
+        !shareMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowShareMenu(false)
+      }
+      if (
+        repeatMenuRef.current &&
+        !repeatMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowRepeatMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  const handleToggleEndorse = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const nextLiked = !liked
+    setLiked(nextLiked)
+    setLikeCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)))
+    setLikePopping(true)
+    setTimeout(() => setLikePopping(false), 300)
+
+    try {
+      const res = await toggleEndorseMutation({ reviewId: review._id })
+      setLiked(res.endorsed)
+      setLikeCount(res.count)
+    } catch {
+      // Revert on error
+      setLiked(!nextLiked)
+      setLikeCount((prev) => (nextLiked ? Math.max(0, prev - 1) : prev + 1))
+    }
+  }
+
+  const handleToggleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const nextBookmarked = !bookmarked
+    setBookmarked(nextBookmarked)
+
+    try {
+      const res = await toggleBookmarkMutation({ reviewId: review._id })
+      setBookmarked(res.bookmarked)
+    } catch {
+      setBookmarked(!nextBookmarked)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/dashboard#review-${review._id}` : ''
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedLink(true)
+      setTimeout(() => {
+        setCopiedLink(false)
+        setShowShareMenu(false)
+      }, 1500)
+    } catch {
+      setShowShareMenu(false)
+    }
+  }
+
+  const handleShareToX = () => {
+    const shareText = `My appraisal for ${review.app?.name ?? 'Software'}: ${review.craftScore}% Craft / ${review.utilityScore}% Utility. "${review.headline}" via @screenlog`
+    const url = typeof window !== 'undefined' ? window.location.href : 'https://screenlog.design'
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      shareText,
+    )}&url=${encodeURIComponent(url)}`
+    window.open(tweetUrl, '_blank', 'noopener,noreferrer')
+    setShowShareMenu(false)
+  }
+
+  const handleRepost = () => {
+    setRepostToast(true)
+    setShowRepeatMenu(false)
+    setTimeout(() => setRepostToast(false), 2500)
+  }
 
   const displayMediaUrl = review.mediaUrl || review.app?.mediaUrl
   const isVideo = review.mediaType === 'loom' || review.mediaType === 'video_embed'
@@ -64,6 +192,14 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
 
   return (
     <article className="group relative w-full bg-white rounded-3xl p-5 sm:p-6 border border-black/10 shadow-2xs transition hover:shadow-xs select-none">
+      {/* Repost confirmation notification */}
+      {repostToast && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+          <Check className="size-3.5" />
+          <span>Critique reposted to your timeline</span>
+        </div>
+      )}
+
       {/* Top Header: Critic Avatar, Handle, Timestamp & Options */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -97,7 +233,6 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
         <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-black/[0.04] text-neutral-700 border border-black/5">
           {review.app?.category ?? 'DESIGN SYSTEM'}
         </span>
- 
       </div>
 
       {/* App / Specimen Title */}
@@ -105,7 +240,7 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
         {review.app?.name ?? 'Software Appraisal'}
       </h3>
 
-      {/* Attribution Line: "Figma file by Pietro Schirano (@skirano)" */}
+      {/* Attribution Line */}
       {(review.app?.sourceAuthor || review.app?.sourceType) && (
         <p className="text-xs sm:text-[13px] text-neutral-500 font-normal mb-3">
           {sourceLabel}{' '}
@@ -125,6 +260,47 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
         <p className="text-sm sm:text-[15px] text-neutral-800 leading-relaxed mb-4">
           {review.quote}
         </p>
+      )}
+
+      {/* Counter-Appraisal Quoted Take (if this critique quotes another) */}
+      {review.parentReview && (
+        <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-[#F6F4ED] border border-black/8 relative">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-2">
+              <CriticAvatar
+                seed={review.parentReview.authorHandle}
+                size="xs"
+                rounded="squircle"
+              />
+              <span className="text-xs font-bold text-foreground">
+                @{review.parentReview.authorHandle}
+              </span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 bg-amber-500/15 px-1.5 py-0.2 rounded font-bold">
+                Counter-Appraised
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] font-mono font-bold">
+              <span className="text-emerald-700 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                {review.parentReview.craftScore}% CRAFT
+              </span>
+              <span className="text-amber-800 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                {review.parentReview.utilityScore}% UTILITY
+              </span>
+            </div>
+          </div>
+
+          {review.parentReview.headline && (
+            <p className="text-xs font-bold text-neutral-800 line-clamp-1 mb-0.5">
+              &ldquo;{review.parentReview.headline}&rdquo;
+            </p>
+          )}
+          {review.parentReview.quote && (
+            <p className="text-xs text-neutral-600 line-clamp-2 italic">
+              {review.parentReview.quote}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Visual Proof Media (with Overlay Rubber Stamp in Top-Right Corner) */}
@@ -174,8 +350,8 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
               onClick={(e) => e.stopPropagation()}
               className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 text-white text-[10px] font-mono font-medium backdrop-blur-xs flex items-center gap-1 transition opacity-0 group-hover/media:opacity-100 shadow-xs"
             >
-              <span className='text-white'>View Source</span>
-             <ArrowUpRight size={12} className='text-white/60'/>
+              <span className="text-white">View Source</span>
+              <ArrowUpRight size={12} className="text-white/60" />
             </a>
           )}
         </div>
@@ -236,7 +412,6 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
               {review.craftScore}
               <span className="text-lg sm:text-xl font-bold text-neutral-500">%</span>
             </div>
-            {/* Progress Bar */}
             <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden mt-2 mb-1.5">
               <div
                 className="h-full bg-emerald-600 rounded-full transition-all duration-500"
@@ -260,7 +435,6 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
               {review.utilityScore}
               <span className="text-lg sm:text-xl font-bold text-neutral-500">%</span>
             </div>
-            {/* Progress Bar */}
             <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden mt-2 mb-1.5">
               <div
                 className="h-full bg-amber-500/80 rounded-full transition-all duration-500"
@@ -274,66 +448,164 @@ export default function ScorecardReviewCard({ review }: ScorecardReviewCardProps
         </div>
       </div>
 
-      {/* Action Bar (Comment, Repost, Like, Bookmark, Share) */}
+      {/* Action Bar (Comment, Repost/Counter, Endorse, Bookmark, Share) */}
       <div className="flex items-center justify-between pt-1 text-neutral-400 text-xs">
         <div className="flex items-center gap-6 sm:gap-8">
+          {/* Discussion Drawer Trigger */}
           <button
             type="button"
-            className="flex items-center gap-2 hover:text-sky-600 transition cursor-pointer group/act"
+            onClick={() => onOpenDiscussion?.(review)}
+            className="flex items-center gap-1.5 hover:text-sky-600 transition cursor-pointer group/act"
+            title="Open discussion drawer"
           >
             <div className="p-1 rounded-full group-hover/act:bg-sky-50 transition">
               <MessageSquare className="size-4" />
             </div>
-            <span className="text-xs font-medium">1</span>
+            <span className="text-xs font-medium">
+              {review.commentCount ?? 0}
+            </span>
           </button>
 
-          <button
-            type="button"
-            className="flex items-center gap-2 hover:text-emerald-600 transition cursor-pointer group/act"
-          >
-            <div className="p-1 rounded-full group-hover/act:bg-emerald-50 transition">
-              <Repeat2 className="size-4" />
-            </div>
-            <span className="text-xs font-medium">2</span>
-          </button>
+          {/* Repost / Counter-Appraise Dropdown */}
+          <div className="relative" ref={repeatMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowRepeatMenu(!showRepeatMenu)}
+              className="flex items-center gap-1.5 hover:text-emerald-600 transition cursor-pointer group/act"
+              title="Repost or counter-appraise"
+            >
+              <div className="p-1 rounded-full group-hover/act:bg-emerald-50 transition">
+                <Repeat2 className="size-4" />
+              </div>
+              <span className="text-xs font-medium">
+                {review.parentReview ? '1' : '0'}
+              </span>
+            </button>
 
+            {showRepeatMenu && (
+              <div className="absolute left-0 bottom-full mb-2 w-52 bg-white rounded-2xl shadow-xl border border-black/10 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={handleRepost}
+                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-50 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Repeat2 className="size-3.5 text-emerald-600" />
+                  <span>Repost Critique</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRepeatMenu(false)
+                    onCounterAppraise?.(review)
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-amber-900 hover:bg-amber-500/10 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Sparkles className="size-3.5 text-amber-700" />
+                  <div>
+                    <span className="block leading-tight">Counter-Appraise</span>
+                    <span className="text-[10px] font-normal text-amber-700 block">
+                      Log divergent Craft &amp; Utility
+                    </span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Endorse (Heart) */}
           <button
             type="button"
-            onClick={() => setLiked(!liked)}
-            className={`flex items-center gap-2 transition cursor-pointer group/act ${
+            onClick={handleToggleEndorse}
+            className={`flex items-center gap-1.5 transition cursor-pointer group/act ${
               liked ? 'text-rose-600' : 'hover:text-rose-600'
             }`}
+            title="Endorse critique"
           >
             <div className="p-1 rounded-full group-hover/act:bg-rose-50 transition">
               <Heart
-                className={`size-4 ${liked ? 'fill-rose-600 text-rose-600' : ''}`}
+                className={`size-4 transition-transform duration-200 ${
+                  likePopping ? 'scale-125' : 'scale-100'
+                } ${liked ? 'fill-rose-600 text-rose-600' : ''}`}
               />
             </div>
-            <span className="text-xs font-medium">{liked ? 5 : 4}</span>
+            <span className="text-xs font-medium">{likeCount}</span>
           </button>
         </div>
 
         <div className="flex items-center gap-4 sm:gap-5">
+          {/* Bookmark */}
           <button
             type="button"
-            onClick={() => setBookmarked(!bookmarked)}
+            onClick={handleToggleBookmark}
             className={`transition cursor-pointer group/act p-1 rounded-full hover:bg-amber-50 ${
               bookmarked ? 'text-amber-600' : 'hover:text-amber-600'
             }`}
             aria-label="Bookmark review"
+            title={bookmarked ? 'Remove from specimen collection' : 'Save to specimen collection'}
           >
             <Bookmark
               className={`size-4 ${bookmarked ? 'fill-amber-600 text-amber-600' : ''}`}
             />
           </button>
 
-          <button
-            type="button"
-            className="transition cursor-pointer group/act p-1 rounded-full hover:bg-black/5 hover:text-neutral-700"
-            aria-label="Share review"
-          >
-            <Share className="size-4" />
-          </button>
+          {/* Share Dropdown */}
+          <div className="relative" ref={shareMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className="transition cursor-pointer group/act p-1 rounded-full hover:bg-black/5 hover:text-neutral-700"
+              aria-label="Share review"
+              title="Share review"
+            >
+              <Share className="size-4" />
+            </button>
+
+            {showShareMenu && (
+              <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-2xl shadow-xl border border-black/10 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-50 flex items-center gap-2 transition cursor-pointer"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="size-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Link Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5 text-neutral-500" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareToX}
+                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-neutral-800 hover:bg-neutral-50 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Share2 className="size-3.5 text-neutral-500" />
+                  <span>Share to X</span>
+                </button>
+
+                <div className="h-px bg-black/5 my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowShareMenu(false)
+                    onExportTasteCard?.(review)
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-amber-900 hover:bg-amber-500/10 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Sparkles className="size-3.5 text-amber-700" />
+                  <span>Export Taste Card</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </article>

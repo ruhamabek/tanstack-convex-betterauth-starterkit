@@ -10,6 +10,9 @@ import DashboardRightRail from '../components/dashboard/DashboardRightRail'
 import EvaluateAppModal from '../components/dashboard/EvaluateAppModal'
 import EditProfileModal from '../components/dashboard/EditProfileModal'
 import CreateSpecimenModal from '../components/dashboard/CreateSpecimenModal'
+import CritiqueDiscussionDrawer from '../components/dashboard/CritiqueDiscussionDrawer'
+import TasteCardExportModal from '../components/dashboard/TasteCardExportModal'
+import type { ReviewWithAppAndSocial } from '../components/dashboard/ScorecardReviewCard'
 
 export const Route = createFileRoute('/_protected/dashboard')({
   loader: async ({ context }) => {
@@ -64,6 +67,35 @@ function DashboardPage() {
   const [targetAppId, setTargetAppId] = useState<Id<'apps'> | undefined>(undefined)
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
   const [showCreateSpecimenModal, setShowCreateSpecimenModal] = useState(false)
+  const [activeDiscussionReview, setActiveDiscussionReview] = useState<ReviewWithAppAndSocial | null>(null)
+  const [activeTasteCardReview, setActiveTasteCardReview] = useState<ReviewWithAppAndSocial | null>(null)
+  const [counterAppraisalReview, setCounterAppraisalReview] = useState<{
+    id: Id<'reviews'>
+    authorHandle: string
+    craftScore: number
+    utilityScore: number
+    headline: string
+  } | null>(null)
+
+  const handleOpenDiscussion = (review: ReviewWithAppAndSocial) => {
+    setActiveDiscussionReview(review)
+  }
+
+  const handleExportTasteCard = (review: ReviewWithAppAndSocial) => {
+    setActiveTasteCardReview(review)
+  }
+
+  const handleCounterAppraise = (review: ReviewWithAppAndSocial) => {
+    setCounterAppraisalReview({
+      id: review._id,
+      authorHandle: review.authorHandle,
+      craftScore: review.craftScore,
+      utilityScore: review.utilityScore,
+      headline: review.headline,
+    })
+    setTargetAppId(review.appId)
+    setShowEvaluateModal(true)
+  }
 
   // Automatically prompt profile claiming if first time
   useEffect(() => {
@@ -145,8 +177,12 @@ function DashboardPage() {
           reviews={myReviews}
           onOpenCritiqueModal={() => {
             setTargetAppId(undefined)
+            setCounterAppraisalReview(null)
             setShowEvaluateModal(true)
           }}
+          onOpenDiscussion={handleOpenDiscussion}
+          onExportTasteCard={handleExportTasteCard}
+          onCounterAppraise={handleCounterAppraise}
         />
       </main>
 
@@ -161,10 +197,12 @@ function DashboardPage() {
         onClose={() => {
           setShowEvaluateModal(false)
           setTargetAppId(undefined)
+          setCounterAppraisalReview(null)
         }}
         apps={apps.filter((a) => (a.sourceType || 'product') === 'product')}
         profile={profile}
         initialAppId={targetAppId}
+        counterAppraisalReview={counterAppraisalReview}
         onSubmit={handleEvaluateApp}
       />
 
@@ -184,6 +222,21 @@ function DashboardPage() {
         userEmail={user?.email}
         defaultName={user?.name?.split(' ')[0]}
         onSave={handleSaveProfile}
+      />
+
+      {/* Slide-over Critique Discussion Drawer */}
+      <CritiqueDiscussionDrawer
+        isOpen={Boolean(activeDiscussionReview)}
+        onClose={() => setActiveDiscussionReview(null)}
+        review={activeDiscussionReview}
+        currentProfile={profile}
+      />
+
+      {/* Visual Taste Card Export Modal */}
+      <TasteCardExportModal
+        isOpen={Boolean(activeTasteCardReview)}
+        onClose={() => setActiveTasteCardReview(null)}
+        review={activeTasteCardReview}
       />
     </div>
   )
