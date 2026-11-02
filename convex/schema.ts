@@ -20,6 +20,8 @@ export default defineSchema({
     badge: v.optional(v.string()), // "Founding Critic", "Verified Critic"
     criticNumber: v.optional(v.number()), // e.g. 1, 2... Genesis order
     avatarUrl: v.optional(v.string()),
+    bannerUrl: v.optional(v.string()),
+    bannerStorageId: v.optional(v.id('_storage')),
     reviewsCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

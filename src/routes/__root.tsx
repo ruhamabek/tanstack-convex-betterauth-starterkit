@@ -65,6 +65,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [
       {
+        rel: 'preload',
+        href: '/fonts/geist-sans/Geist-Variable.woff2',
+        as: 'font',
+        type: 'font/woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
         rel: 'stylesheet',
         href: appCss,
       },
@@ -76,7 +83,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootDocument() {
   const { convexQueryClient, token } = Route.useRouteContext()
   const location = useLocation()
-  const isAuthPage = location.pathname === '/login'
+  const isStandaloneApp =
+    location.pathname === '/login' || location.pathname.startsWith('/dashboard')
 
   return (
     <ConvexBetterAuthProvider
@@ -90,9 +98,9 @@ function RootDocument() {
           <HeadContent />
         </head>
         <body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-[rgba(79,184,178,0.24)]">
-          {!isAuthPage && <Header />}
+          {!isStandaloneApp && <Header />}
           <Outlet />
-          {!isAuthPage && <Footer />}
+          {!isStandaloneApp && <Footer />}
           <TanStackDevtools
             config={{
               position: 'bottom-right',

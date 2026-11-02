@@ -11,3 +11,8 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+.agents/skills
+/src/routes/stageshow.tsx
+/src/stageshow
+/src/components/stageshow
+skills-lock.json

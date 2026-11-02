@@ -14,10 +14,18 @@ export const getMyProfile = query({
     }
 
     const userId = String(user._id)
-    return await ctx.db
+    const profile = await ctx.db
       .query('profiles')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .first()
+
+    if (!profile) return null
+
+    let bannerUrl = profile.bannerUrl
+    if (!bannerUrl && profile.bannerStorageId) {
+      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || undefined
+    }
+    return { ...profile, bannerUrl }
   },
 })
 
@@ -27,10 +35,18 @@ export const getByHandle = query({
   },
   handler: async (ctx, args) => {
     const cleanHandle = args.handle.trim().toLowerCase().replace(/^@/, '')
-    return await ctx.db
+    const profile = await ctx.db
       .query('profiles')
       .withIndex('by_handle', (q) => q.eq('handle', cleanHandle))
       .first()
+
+    if (!profile) return null
+
+    let bannerUrl = profile.bannerUrl
+    if (!bannerUrl && profile.bannerStorageId) {
+      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || undefined
+    }
+    return { ...profile, bannerUrl }
   },
 })
 
@@ -73,6 +89,8 @@ export const saveProfile = mutation({
     role: v.string(),
     bio: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    bannerUrl: v.optional(v.string()),
+    bannerStorageId: v.optional(v.id('_storage')),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx)
@@ -110,6 +128,14 @@ export const saveProfile = mutation({
 
     const now = Date.now()
 
+    let finalBannerUrl = args.bannerUrl
+    if (args.bannerStorageId) {
+      const storageUrl = await ctx.storage.getUrl(args.bannerStorageId)
+      if (storageUrl) {
+        finalBannerUrl = storageUrl
+      }
+    }
+
     if (existingProfile) {
       // If profile already exists but lacks a criticNumber, assign their sequence
       let criticNumber = existingProfile.criticNumber
@@ -126,6 +152,8 @@ export const saveProfile = mutation({
         role,
         bio: args.bio?.trim() || undefined,
         avatarUrl: args.avatarUrl || existingProfile.avatarUrl,
+        bannerUrl: finalBannerUrl !== undefined ? (finalBannerUrl || undefined) : existingProfile.bannerUrl,
+        bannerStorageId: args.bannerStorageId !== undefined ? args.bannerStorageId : (finalBannerUrl === '' ? undefined : existingProfile.bannerStorageId),
         criticNumber,
         badge,
         updatedAt: now,
@@ -145,6 +173,8 @@ export const saveProfile = mutation({
       role,
       bio: args.bio?.trim() || undefined,
       avatarUrl: args.avatarUrl || undefined,
+      bannerUrl: finalBannerUrl || undefined,
+      bannerStorageId: args.bannerStorageId || undefined,
       badge,
       criticNumber,
       reviewsCount: 0,

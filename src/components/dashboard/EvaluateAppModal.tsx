@@ -2,8 +2,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette,
-  Zap,
-  LoaderCircle,
+   LoaderCircle,
   Award,
   CheckCircle2,
   ArrowRight,
@@ -12,6 +11,7 @@ import {
   Video,
   Image as ImageIcon,
   Layers,
+  Pencil,
 } from 'lucide-react'
 import { useSelector } from '@tanstack/react-form'
 import { useConvexMutation } from '@convex-dev/react-query'
@@ -695,7 +695,7 @@ export default function EvaluateAppModal({
                         <div className="space-y-1.5 p-3.5 rounded-xl bg-desk border border-black/10 shadow-2xs">
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-bold text-foreground flex items-center gap-1.5">
-                              <Zap className="size-3.5 text-amber-500" />
+                              <Pencil className="size-3.5 text-amber-500" />
                               <span>Utility Score</span>
                             </span>
                             <span className="font-black text-sm text-foreground font-mono">

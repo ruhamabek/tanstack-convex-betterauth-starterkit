@@ -60,13 +60,22 @@ export const listByUser = query({
       .withIndex('by_user', (q) => q.eq('userId', targetUserId!))
       .collect()
 
-    // Enrich with app details for card rendering
+    // Enrich with app details and storage URLs for card rendering
     const enriched = await Promise.all(
       reviews.map(async (review) => {
         const app = await ctx.db.get(review.appId)
+        let mediaUrl = review.mediaUrl
+        if (!mediaUrl && review.mediaStorageId) {
+          mediaUrl = (await ctx.storage.getUrl(review.mediaStorageId)) || undefined
+        }
+        let appMediaUrl = app?.mediaUrl
+        if (!appMediaUrl && app?.mediaStorageId) {
+          appMediaUrl = (await ctx.storage.getUrl(app.mediaStorageId)) || undefined
+        }
         return {
           ...review,
-          app,
+          mediaUrl,
+          app: app ? { ...app, mediaUrl: appMediaUrl } : null,
         }
       })
     )

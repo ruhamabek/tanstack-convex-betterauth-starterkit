@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Sparkles, Star, ArrowRight, CheckCircle2, Palette, Zap } from 'lucide-react'
+import { Sparkles, Star, ArrowRight, CheckCircle2, Palette,  Pencil } from 'lucide-react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import CriticAvatar from '../components/CriticAvatar'
 
@@ -616,7 +616,7 @@ function ScreenlogHome() {
                       <span className={`text-xl font-black ${app.utilityScore < 60 ? 'text-rose-500' : 'text-emerald-600'}`}>
                         {app.utilityScore}%
                       </span>
-                      <Zap className="size-4 text-amber-500" />
+                      <Pencil className="size-4 text-amber-500" />
                     </div>
                     <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase mt-0.5">
                       Utility Score

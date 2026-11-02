@@ -42,14 +42,22 @@ export function GoogleSignInButton({
   )
 }
 
-export function SignOutButton({ className }: { className?: string }) {
+export function SignOutButton({
+  className,
+  showText = true,
+  children,
+}: {
+  className?: string
+  showText?: boolean
+  children?: React.ReactNode
+}) {
   const [isPending, startTransition] = useTransition()
 
   return (
     <button
       type="button"
       disabled={isPending}
-       onClick={() => {
+      onClick={() => {
         startTransition(async () => {
           await authClient.signOut({
             fetchOptions: {
@@ -64,13 +72,18 @@ export function SignOutButton({ className }: { className?: string }) {
         'inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-70',
         className,
       )}
+      title="Sign out"
     >
       {isPending ? (
-        <LoaderCircle className="h-4 w-4 animate-spin" />
+        <LoaderCircle className="h-4 w-4 animate-spin shrink-0" />
       ) : (
-        <LogOut className="h-4 w-4" />
+        <LogOut className="h-4 w-4 shrink-0" />
       )}
-      <span>{isPending ? 'Signing out…' : 'Sign out'}</span>
+      {children ? (
+        children
+      ) : showText ? (
+        <span>{isPending ? 'Signing out…' : 'Sign out'}</span>
+      ) : null}
     </button>
   )
 }

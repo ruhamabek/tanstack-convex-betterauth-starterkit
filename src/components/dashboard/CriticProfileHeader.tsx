@@ -1,11 +1,10 @@
-import { Edit3, Plus, Sparkles } from 'lucide-react'
+import { Edit3, Plus, Sparkles, Briefcase, Camera } from 'lucide-react'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { SignOutButton } from '../AuthControls'
 import CriticAvatar from '../CriticAvatar'
 import FoundingCriticBadge from './FoundingCriticBadge'
 
 export interface CriticProfileHeaderProps {
-  profile?: Doc<'profiles'> | null
+  profile?: (Doc<'profiles'> & { bannerUrl?: string }) | null
   user?: { name?: string; email?: string } | null
   reviewsCount: number
   lgtmCount: number
@@ -27,131 +26,162 @@ export default function CriticProfileHeader({
   onOpenEditProfileModal,
   onOpenCreateSpecimenModal,
 }: CriticProfileHeaderProps) {
+  const displayName = profile?.displayName ?? user?.name ?? 'Software Critic'
+  const handle = profile?.handle ?? 'critic'
+
   return (
-    <section className="relative z-20 rounded-[32px] bg-canvas border border-black/10 p-6 sm:p-8 shadow-xs">
-      {/* Subtle warm ambient backdrop gradient */}
-      <div className="absolute top-0 inset-x-0 h-28 rounded-t-[31px] bg-gradient-to-b from-amber-500/[0.04] to-transparent pointer-events-none" />
-
-      <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-        {/* Left: Avatar + Identity */}
-        <div className="flex items-start sm:items-center gap-5">
-          <CriticAvatar
-            avatarUrl={profile?.avatarUrl}
-            seed={profile?.handle || user?.name || 'critic'}
-            size="2xl"
-            className="shadow-sm border-2 border-black/10 shrink-0"
+    <section className="relative w-full border-b border-black/10 bg-canvas select-none">
+      {/* Editorial Cover Banner */}
+      <div className="relative h-36 sm:h-48 w-full bg-gradient-to-r from-amber-200/50 via-stone-200/60 to-orange-100/60 overflow-hidden border-b border-black/5 group">
+        {profile?.bannerUrl ? (
+          <img
+            src={profile.bannerUrl}
+            alt={`${displayName} cover banner`}
+            className="absolute inset-0 w-full h-full object-cover"
           />
+        ) : (
+          <>
+            {/* Subtle stationery texture dots */}
+            <div
+              className="absolute inset-0 opacity-15 pointer-events-none"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle, #000 1px, transparent 1px)',
+                backgroundSize: '16px 16px',
+              }}
+            />
 
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-                {profile?.displayName ?? user?.name ?? 'Software Critic'}
-              </h1>
-
-              {profile && (
-                <span className="text-xs font-mono font-bold text-muted-foreground bg-black/5 px-2 py-0.5 rounded-md">
-                  @{profile.handle}
-                </span>
-              )}
-
-              <FoundingCriticBadge
-                profile={profile}
-                reviewsCount={reviewsCount}
+            {/* Ambient watermark stamp in banner corner */}
+            <div className="absolute right-4 bottom-2 opacity-25 pointer-events-none select-none">
+              <img
+                src="/assets/rubber_stamp_3d.png"
+                alt="Rubber Stamp Ambient"
+                className="w-28 sm:w-36 h-auto drop-shadow-md rotate-[-8deg]"
               />
             </div>
+          </>
+        )}
 
-            <p className="text-xs sm:text-sm font-semibold flex flex-col text-neutral-600">
-              {profile?.role ?? 'Product Crafter'}
-              {profile?.bio && (
-                <span className="text-neutral-700 font-serif font-normal italic text-xs sm:text-[13px] mt-0.5 leading-relaxed">
-                  &ldquo;{profile.bio}&rdquo;
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
+        {/* Quick edit banner hover trigger */}
+        <button
+          type="button"
+          onClick={onOpenEditProfileModal}
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/65 hover:bg-black/85 text-white rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+          title="Upload or change background cover image"
+        >
+          <Camera className="size-3.5" />
+          <span>{profile?.bannerUrl ? 'Change Cover' : 'Add Cover'}</span>
+        </button>
+      </div>
 
-        {/* Right: Stats Counters & Action Buttons */}
-        <div className="flex flex-col sm:flex-row md:flex-col items-start sm:items-center md:items-end gap-4 pt-4 md:pt-0 border-t md:border-t-0 border-black/5">
-          {/* Horizontal Stats Row */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="text-center px-3 py-1.5 rounded-xl bg-desk border border-black/5 shadow-2xs">
-              <div className="text-lg font-black text-foreground leading-none">
-                {reviewsCount}
-              </div>
-              <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                Evaluations
-              </div>
-            </div>
-
-            <div className="text-center px-3 py-1.5 rounded-xl bg-desk border border-black/5 shadow-2xs">
-              <div className="text-lg font-black text-emerald-700 leading-none">
-                {lgtmCount}
-              </div>
-              <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                Certified LGTM
-              </div>
-            </div>
-
-            <div className="text-center px-3 py-1.5 rounded-xl bg-desk border border-black/5 shadow-2xs">
-              <div className="text-lg font-black text-rose-700 leading-none">
-                {rottenCount}
-              </div>
-              <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                Rotten
-              </div>
-            </div>
-
-            {avgCraftGiven !== null && (
-              <div className="text-center px-3 py-1.5 rounded-xl bg-desk border border-black/5 shadow-2xs">
-                <div className="text-lg font-black text-amber-600 leading-none">
-                  {avgCraftGiven}%
-                </div>
-                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                  Avg Craft
-                </div>
-              </div>
-            )}
+      {/* Profile Details Container */}
+      <div className="px-4 sm:px-6 pb-4">
+        {/* Avatar & Action Buttons Row */}
+        <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-4">
+          {/* Overlapping Profile Avatar */}
+          <div className="relative">
+            <CriticAvatar
+              avatarUrl={profile?.avatarUrl}
+              seed={handle}
+              size="2xl"
+              className="size-24 sm:size-32 rounded-full border-4 border-canvas bg-white shadow-md shrink-0"
+            />
           </div>
 
-          {/* Action Buttons: Evaluate App (Primary), Ingest Specimen & Edit Persona */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+          {/* Action Buttons Row */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <button
               type="button"
-              onClick={onOpenCritiqueModal}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-full bg-foreground hover:bg-neutral-800 px-4 sm:px-5 py-2.5 text-xs font-bold text-background shadow-xs transition active:scale-95 cursor-pointer"
-              title="Evaluate a living software application or feature"
+              onClick={onOpenEditProfileModal}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/20 hover:bg-black/5 px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-foreground transition active:scale-95 cursor-pointer shadow-2xs"
             >
-              <Plus className="size-3.5 stroke-[3]" />
-              <span>Evaluate App</span>
+              <Edit3 className="size-3.5" />
+              <span>Edit Persona</span>
             </button>
 
             {onOpenCreateSpecimenModal && (
               <button
                 type="button"
                 onClick={onOpenCreateSpecimenModal}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 sm:px-4 py-2.5 text-xs font-bold text-amber-900 shadow-2xs transition active:scale-95 cursor-pointer"
-                title="Index a design exploration from Dribbble, Figma, Mobbin, or Pinterest"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 sm:py-2 text-xs font-bold text-amber-900 transition active:scale-95 cursor-pointer shadow-2xs"
+                title="Ingest Dribbble or Mobbin specimen"
               >
                 <Sparkles className="size-3.5 text-amber-700" />
-                <span>Ingest Specimen</span>
+                <span>Ingest</span>
               </button>
             )}
 
             <button
               type="button"
-              onClick={onOpenEditProfileModal}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-white hover:bg-neutral-100 border border-black/10 px-3.5 sm:px-4 py-2.5 text-xs font-bold text-foreground shadow-2xs transition active:scale-95 cursor-pointer"
-              title="Edit Critic Persona & Avatar"
+              onClick={onOpenCritiqueModal}
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground hover:bg-neutral-800 px-4 py-1.5 sm:py-2 text-xs font-bold text-background transition active:scale-95 cursor-pointer shadow-xs"
             >
-              <Edit3 className="size-3.5" />
-              <span>Edit Persona</span>
+              <Plus className="size-3.5 stroke-[3]" />
+              <span>Evaluate</span>
             </button>
-
-            <div className="hidden sm:block">
-              <SignOutButton className="cursor-pointer hover:text-destructive text-sm" />
-            </div>
           </div>
+        </div>
+
+        {/* Name, Handle & Badges */}
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+              {displayName}
+            </h1>
+            <FoundingCriticBadge
+              profile={profile}
+              reviewsCount={reviewsCount}
+            />
+          </div>
+
+          <p className="text-xs font-mono font-medium text-neutral-500">
+            @{handle}
+          </p>
+        </div>
+
+        {/* Bio / Manifesto */}
+        {profile?.bio ? (
+          <p className="mt-2.5 text-xs sm:text-sm text-neutral-700 leading-relaxed font-serif italic max-w-xl">
+            &ldquo;{profile.bio}&rdquo;
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-neutral-400 italic">
+            Software evaluator & interface critic in the public consensus layer.
+          </p>
+        )}
+
+        {/* Metadata (Role, Joined) */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-neutral-500">
+          <div className="flex items-center gap-1.5">
+            <Briefcase className="size-3.5 text-neutral-400" />
+            <span>{profile?.role ?? 'Product Crafter'}</span>
+          </div>
+         
+        </div>
+
+        {/* X-Style Stats Row */}
+        <div className="mt-3.5 pt-3 border-t border-black/5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-foreground">{reviewsCount}</span>
+            <span className="text-neutral-500">Evaluations</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-emerald-700">{lgtmCount}</span>
+            <span className="text-neutral-500">Certified LGTM</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-rose-700">{rottenCount}</span>
+            <span className="text-neutral-500">Rotten</span>
+          </div>
+
+          {avgCraftGiven !== null && (
+            <div className="flex items-center gap-1.5">
+              <span className="font-black text-amber-700">{avgCraftGiven}%</span>
+              <span className="text-neutral-500">Avg Craft Score</span>
+            </div>
+          )}
         </div>
       </div>
     </section>
