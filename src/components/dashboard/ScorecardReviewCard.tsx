@@ -12,11 +12,13 @@ import {
   Check,
   Share2,
   Sparkles,
+  Maximize2,
 } from 'lucide-react'
 import { useConvexMutation } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import CriticAvatar from '../CriticAvatar'
+import ImagePreviewModal from './ImagePreviewModal'
 
 export type ReviewWithAppAndSocial = Doc<'reviews'> & {
   authorAvatarUrl?: string | null
@@ -93,6 +95,7 @@ export default function ScorecardReviewCard({
   const [showRepeatMenu, setShowRepeatMenu] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [repostToast, setRepostToast] = useState(false)
+  const [showImagePreview, setShowImagePreview] = useState(false)
 
   const shareMenuRef = useRef<HTMLDivElement>(null)
   const repeatMenuRef = useRef<HTMLDivElement>(null)
@@ -301,7 +304,11 @@ export default function ScorecardReviewCard({
 
       {/* Visual Proof Media (with Overlay Rubber Stamp in Top-Right Corner) */}
       {displayMediaUrl && !isVideo && (
-        <div className="mb-4 rounded-2xl overflow-hidden border border-black/10 bg-white relative group/media">
+        <div
+          onClick={() => setShowImagePreview(true)}
+          className="mb-4 rounded-2xl overflow-hidden border border-black/10 bg-white relative group/media cursor-zoom-in select-none"
+          title="Click to view full preview"
+        >
           <img
             src={displayMediaUrl}
             alt={review.app?.name ?? 'Visual proof'}
@@ -337,6 +344,12 @@ export default function ScorecardReviewCard({
             )}
           </div>
 
+          {/* Full Preview Indicator Badge on Hover */}
+          <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 text-white text-[10px] font-mono font-medium backdrop-blur-xs flex items-center gap-1.5 transition opacity-0 group-hover/media:opacity-100 shadow-xs pointer-events-none z-10">
+            <Maximize2 size={12} className="text-white/80" />
+            <span>Full Preview</span>
+          </div>
+
           {/* View Source Link on Hover */}
           {review.app?.sourceUrl && (
             <a
@@ -344,7 +357,7 @@ export default function ScorecardReviewCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 text-white text-[10px] font-mono font-medium backdrop-blur-xs flex items-center gap-1 transition opacity-0 group-hover/media:opacity-100 shadow-xs"
+              className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 text-white text-[10px] font-mono font-medium backdrop-blur-xs flex items-center gap-1 transition opacity-0 group-hover/media:opacity-100 shadow-xs z-10"
             >
               <span className="text-white">View Source</span>
               <ArrowUpRight size={12} className="text-white/60" />
@@ -599,6 +612,23 @@ export default function ScorecardReviewCard({
           </div>
         </div>
       </div>
+
+      {/* Full Resolution Image Lightbox Modal */}
+      {displayMediaUrl && !isVideo && (
+        <ImagePreviewModal
+          isOpen={showImagePreview}
+          onClose={() => setShowImagePreview(false)}
+          imageUrl={displayMediaUrl}
+          appName={review.app?.name ?? 'Software Specimen'}
+          authorHandle={review.authorHandle}
+          sourceUrl={review.app?.sourceUrl}
+          sourceAuthor={review.app?.sourceAuthor}
+          sourceType={review.app?.sourceType}
+          verdict={review.verdict}
+          craftScore={review.craftScore}
+          utilityScore={review.utilityScore}
+        />
+      )}
     </article>
   )
 }
