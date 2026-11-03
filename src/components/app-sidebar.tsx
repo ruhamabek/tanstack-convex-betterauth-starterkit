@@ -1,6 +1,7 @@
 import * as React from 'react'
 import {
   Home,
+  Bookmark,
   Flame,
   Sparkles,
   Award,
@@ -28,6 +29,11 @@ const navData = {
       title: 'Home Feed',
       url: '/feed',
       icon: Home,
+    },
+    {
+      title: 'Bookmarks',
+      url: '/bookmarks',
+      icon: Bookmark,
     },
     {
       title: 'Profile',

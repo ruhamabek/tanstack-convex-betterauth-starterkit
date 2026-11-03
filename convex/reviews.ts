@@ -181,6 +181,33 @@ export const listByUser = query({
   },
 })
 
+export const listBookmarked = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getOptionalAuthUser(ctx)
+    if (!user) {
+      return []
+    }
+    const currentUserId = String(user._id)
+
+    const bookmarks = await ctx.db
+      .query('reviewBookmarks')
+      .withIndex('by_user', (q) => q.eq('userId', currentUserId))
+      .order('desc')
+      .collect()
+
+    const enrichedReviews = await Promise.all(
+      bookmarks.map(async (b) => {
+        const review = await ctx.db.get(b.reviewId)
+        if (!review) return null
+        return await enrichReview(ctx, review, currentUserId)
+      }),
+    )
+
+    return enrichedReviews.filter(Boolean) as NonNullable<(typeof enrichedReviews)[number]>[]
+  },
+})
+
 export const getMyReviewForApp = query({
   args: {
     appId: v.id('apps'),

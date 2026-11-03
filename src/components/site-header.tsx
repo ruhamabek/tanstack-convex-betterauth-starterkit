@@ -6,9 +6,11 @@ export function SiteHeader() {
   const location = useLocation()
   const pageTitle = location.pathname.startsWith('/feed')
     ? 'Community Feed'
-    : location.pathname.startsWith('/dashboard')
-      ? 'Critic Profile'
-      : 'Screenlog'
+    : location.pathname.startsWith('/bookmarks')
+      ? 'Bookmarks'
+      : location.pathname.startsWith('/dashboard')
+        ? 'Critic Profile'
+        : 'Screenlog'
 
   const triggerOpenEvaluate = () => {
     window.dispatchEvent(new CustomEvent('screenlog:open-evaluate'))

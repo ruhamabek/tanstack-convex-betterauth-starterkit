@@ -31,7 +31,9 @@ export function NavMain({ items }: NavMainProps) {
               ? location.pathname.startsWith('/dashboard')
               : item.url === '/feed'
                 ? location.pathname.startsWith('/feed')
-                : location.pathname === item.url
+                : item.url === '/bookmarks'
+                  ? location.pathname.startsWith('/bookmarks')
+                  : location.pathname === item.url
 
         return (
           <SidebarMenuItem key={item.title}>
