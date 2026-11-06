@@ -13,10 +13,13 @@ import { Route as StageshowRouteImport } from './routes/stageshow'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedNotificationsRouteImport } from './routes/_protected.notifications'
 import { Route as ProtectedFeedRouteImport } from './routes/_protected.feed'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected.dashboard'
 import { Route as ProtectedBookmarksRouteImport } from './routes/_protected.bookmarks'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ProtectedUHandleRouteImport } from './routes/_protected.u.$handle'
+import { Route as ProtectedAppSlugRouteImport } from './routes/_protected.app.$slug'
 
 const StageshowRoute = StageshowRouteImport.update({
   id: '/stageshow',
@@ -36,6 +39,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedNotificationsRoute = ProtectedNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedFeedRoute = ProtectedFeedRouteImport.update({
   id: '/feed',
@@ -57,6 +65,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedUHandleRoute = ProtectedUHandleRouteImport.update({
+  id: '/u/$handle',
+  path: '/u/$handle',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedAppSlugRoute = ProtectedAppSlugRouteImport.update({
+  id: '/app/$slug',
+  path: '/app/$slug',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -65,6 +83,9 @@ export interface FileRoutesByFullPath {
   '/bookmarks': typeof ProtectedBookmarksRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/feed': typeof ProtectedFeedRoute
+  '/notifications': typeof ProtectedNotificationsRoute
+  '/app/$slug': typeof ProtectedAppSlugRoute
+  '/u/$handle': typeof ProtectedUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -74,6 +95,9 @@ export interface FileRoutesByTo {
   '/bookmarks': typeof ProtectedBookmarksRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/feed': typeof ProtectedFeedRoute
+  '/notifications': typeof ProtectedNotificationsRoute
+  '/app/$slug': typeof ProtectedAppSlugRoute
+  '/u/$handle': typeof ProtectedUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -85,6 +109,9 @@ export interface FileRoutesById {
   '/_protected/bookmarks': typeof ProtectedBookmarksRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/_protected/feed': typeof ProtectedFeedRoute
+  '/_protected/notifications': typeof ProtectedNotificationsRoute
+  '/_protected/app/$slug': typeof ProtectedAppSlugRoute
+  '/_protected/u/$handle': typeof ProtectedUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -96,6 +123,9 @@ export interface FileRouteTypes {
     | '/bookmarks'
     | '/dashboard'
     | '/feed'
+    | '/notifications'
+    | '/app/$slug'
+    | '/u/$handle'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -105,6 +135,9 @@ export interface FileRouteTypes {
     | '/bookmarks'
     | '/dashboard'
     | '/feed'
+    | '/notifications'
+    | '/app/$slug'
+    | '/u/$handle'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -115,6 +148,9 @@ export interface FileRouteTypes {
     | '/_protected/bookmarks'
     | '/_protected/dashboard'
     | '/_protected/feed'
+    | '/_protected/notifications'
+    | '/_protected/app/$slug'
+    | '/_protected/u/$handle'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -156,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/notifications': {
+      id: '/_protected/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof ProtectedNotificationsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/feed': {
       id: '/_protected/feed'
       path: '/feed'
@@ -184,6 +227,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/u/$handle': {
+      id: '/_protected/u/$handle'
+      path: '/u/$handle'
+      fullPath: '/u/$handle'
+      preLoaderRoute: typeof ProtectedUHandleRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/app/$slug': {
+      id: '/_protected/app/$slug'
+      path: '/app/$slug'
+      fullPath: '/app/$slug'
+      preLoaderRoute: typeof ProtectedAppSlugRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
@@ -191,12 +248,18 @@ interface ProtectedRouteChildren {
   ProtectedBookmarksRoute: typeof ProtectedBookmarksRoute
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
   ProtectedFeedRoute: typeof ProtectedFeedRoute
+  ProtectedNotificationsRoute: typeof ProtectedNotificationsRoute
+  ProtectedAppSlugRoute: typeof ProtectedAppSlugRoute
+  ProtectedUHandleRoute: typeof ProtectedUHandleRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedBookmarksRoute: ProtectedBookmarksRoute,
   ProtectedDashboardRoute: ProtectedDashboardRoute,
   ProtectedFeedRoute: ProtectedFeedRoute,
+  ProtectedNotificationsRoute: ProtectedNotificationsRoute,
+  ProtectedAppSlugRoute: ProtectedAppSlugRoute,
+  ProtectedUHandleRoute: ProtectedUHandleRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

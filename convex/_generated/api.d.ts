@@ -10,8 +10,10 @@
 
 import type * as apps from "../apps.js";
 import type * as auth from "../auth.js";
+import type * as follows from "../follows.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as notifications from "../notifications.js";
 import type * as profiles from "../profiles.js";
 import type * as reviews from "../reviews.js";
 import type * as social from "../social.js";
@@ -27,8 +29,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   apps: typeof apps;
   auth: typeof auth;
+  follows: typeof follows;
   helpers: typeof helpers;
   http: typeof http;
+  notifications: typeof notifications;
   profiles: typeof profiles;
   reviews: typeof reviews;
   social: typeof social;

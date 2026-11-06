@@ -668,54 +668,6 @@ function ScreenlogHome() {
       </section>
 
       {/* =========================================================================
-          THE THURSDAY DROP (Weekly Premiere Ritual)
-         ========================================================================= */}
-      <section id="drops" className="py-20 px-6 max-w-7xl mx-auto">
-        <div className="relative rounded-[2.5rem] bg-sea-ink text-white p-8 sm:p-14 overflow-hidden">
-          
-          <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3.5 py-1 text-xs font-semibold text-emerald-400 mb-4 border border-emerald-500/30">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Voting Open • 42h Remaining</span>
-            </div>
-            
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
-              Thursday Drop #04: <br />
-              The Redesign Ballot.
-            </h2>
-            
-            <p className="mt-4 text-neutral-400 text-sm sm:text-base leading-relaxed">
-              Every Thursday at 9 AM, 3 high-profile product redesigns drop into the ballot box. 
-              Ratings stay completely blind until you cast your vote to prevent bandwagon bias.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-4">
-              <button
-                type="button"
-                className="rounded-full bg-white px-6 py-3.5 text-xs font-bold text-black hover:bg-neutral-200 transition shadow-sm cursor-pointer"
-              >
-                Cast Your Anonymous Ballot
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-white/20 bg-white/5 px-6 py-3.5 text-xs font-semibold text-white hover:bg-white/10 transition cursor-pointer"
-              >
-                View Last Week's Top 10
-              </button>
-            </div>
-          </div>
-
-          <div className="hidden lg:block absolute right-14 top-1/2 -translate-y-1/2 opacity-25 pointer-events-none">
-            <img
-              src="/assets/rubber_stamp_3d.png"
-              alt="Rubber stamp silhouette"
-              className="w-64 h-auto invert"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
           TASTE CARD MAKER (Viral Letterboxd 4-Pack)
          ========================================================================= */}
       <section id="card-maker" className="py-20 px-6 max-w-7xl mx-auto border-t border-black/5">

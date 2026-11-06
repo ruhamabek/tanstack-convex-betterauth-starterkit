@@ -77,6 +77,26 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
     ],
   }),
+  errorComponent: ({ error, reset }) => (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#faf9f5] text-neutral-900">
+      <div className="max-w-md p-6 rounded-2xl bg-white border border-black/10 shadow-lg space-y-4">
+        <div className="size-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto font-bold text-lg">
+          !
+        </div>
+        <h2 className="text-lg font-black tracking-tight">Something went wrong</h2>
+        <p className="text-xs text-neutral-500 leading-relaxed font-mono">
+          {error.message || 'An unexpected navigation or network error occurred.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => reset()}
+          className="w-full py-2.5 px-4 rounded-xl bg-black text-white text-xs font-bold hover:bg-neutral-800 transition cursor-pointer"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  ),
   component: RootDocument,
 })
 

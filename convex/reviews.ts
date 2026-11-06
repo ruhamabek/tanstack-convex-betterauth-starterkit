@@ -132,19 +132,57 @@ export const listCommunityFeed = query({
 
 export const listByApp = query({
   args: {
-    appId: v.id('apps'),
+    appId: v.optional(v.id('apps')),
+    slug: v.optional(v.string()),
+    surface: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getOptionalAuthUser(ctx)
     const currentUserId = user ? String(user._id) : null
 
-    const reviews = await ctx.db
+    let targetAppId = args.appId
+
+    if (!targetAppId && args.slug) {
+      const cleanSlug = args.slug.trim().toLowerCase()
+      let app = await ctx.db
+        .query('apps')
+        .withIndex('by_slug', (q) => q.eq('slug', cleanSlug))
+        .first()
+
+      if (!app) {
+        const allApps = await ctx.db.query('apps').collect()
+        app =
+          allApps.find(
+            (a) =>
+              a.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanSlug ||
+              a.name.toLowerCase() === cleanSlug,
+          ) || null
+      }
+
+      if (app) {
+        targetAppId = app._id
+      }
+    }
+
+    if (!targetAppId) return []
+
+    let reviews = await ctx.db
       .query('reviews')
-      .withIndex('by_app', (q) => q.eq('appId', args.appId))
+      .withIndex('by_app', (q) => q.eq('appId', targetAppId!))
       .collect()
 
+    if (args.surface && args.surface !== 'all') {
+      if (args.surface === 'Overall Experience') {
+        reviews = reviews.filter(
+          (r) => !r.featureName || r.featureName.trim() === 'Overall Experience',
+        )
+      } else {
+        reviews = reviews.filter((r) => r.featureName === args.surface)
+      }
+    }
+
     const enriched = await Promise.all(
-      reviews.map((r) => enrichReview(ctx, r, currentUserId))
+      reviews.map((r) => enrichReview(ctx, r, currentUserId)),
     )
 
     return enriched.sort((a, b) => b.createdAt - a.createdAt)
@@ -154,13 +192,25 @@ export const listByApp = query({
 export const listByUser = query({
   args: {
     userId: v.optional(v.string()),
+    handle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getOptionalAuthUser(ctx)
     const currentUserId = user ? String(user._id) : null
 
     let targetUserId = args.userId
-    if (!targetUserId) {
+
+    if (args.handle) {
+      const cleanHandle = args.handle.trim().toLowerCase().replace(/^@/, '')
+      const profile = await ctx.db
+        .query('profiles')
+        .withIndex('by_handle', (q) => q.eq('handle', cleanHandle))
+        .first()
+      if (!profile) {
+        return []
+      }
+      targetUserId = profile.userId
+    } else if (!targetUserId) {
       if (!user) {
         return []
       }
@@ -309,6 +359,28 @@ export const submitReview = mutation({
         createdAt: now,
         updatedAt: now,
       })
+
+      // Send quote notification to parent review author
+      if (args.parentReviewId) {
+        const parentReview = await ctx.db.get(args.parentReviewId)
+        if (parentReview && parentReview.userId !== userId) {
+          const app = await ctx.db.get(args.appId)
+          await ctx.db.insert('notifications', {
+            userId: parentReview.userId,
+            actorUserId: userId,
+            actorHandle: profile.handle,
+            actorDisplayName: profile.displayName,
+            actorAvatarUrl: profile.avatarUrl,
+            type: 'quote',
+            reviewId,
+            appName: app?.name,
+            appIconUrl: app?.iconUrl,
+            previewText: headline,
+            read: false,
+            createdAt: now,
+          })
+        }
+      }
 
       // Increment profile review count and update credential tier
       const newReviewsCount = (profile.reviewsCount || 0) + 1

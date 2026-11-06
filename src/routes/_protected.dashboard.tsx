@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import CriticProfileHeader from '../components/dashboard/CriticProfileHeader'
-import CritiqueFeedSection from '../components/dashboard/CritiqueFeedSection'
+import CritiqueFeedSection, { type VerdictFilter } from '../components/dashboard/CritiqueFeedSection'
 import DashboardRightRail from '../components/dashboard/DashboardRightRail'
 import EvaluateAppModal from '../components/dashboard/EvaluateAppModal'
 import EditProfileModal from '../components/dashboard/EditProfileModal'
 import CreateSpecimenModal from '../components/dashboard/CreateSpecimenModal'
 import CritiqueDiscussionDrawer from '../components/dashboard/CritiqueDiscussionDrawer'
 import TasteCardExportModal from '../components/dashboard/TasteCardExportModal'
+import FollowListModal from '../components/dashboard/FollowListModal'
 import type { ReviewWithAppAndSocial } from '../components/dashboard/ScorecardReviewCard'
 
 export const Route = createFileRoute('/_protected/dashboard')({
@@ -53,16 +54,45 @@ function DashboardPage() {
     convexQueryClient.queryOptions(api.reviews.listByUser, {}),
   )
 
+  const myHandle = profile?.handle || ''
+  const { data: followStats = { followersCount: 0, followingCount: 0 } } =
+    useQuery(
+      convexQueryClient.queryOptions(api.follows.getFollowStats, {
+        handle: myHandle,
+      }),
+    )
+  const { data: followingCritics = [] } = useQuery(
+    convexQueryClient.queryOptions(api.follows.listFollowingByHandle, {
+      handle: myHandle,
+    }),
+  )
+  const { data: followersCritics = [] } = useQuery(
+    convexQueryClient.queryOptions(api.follows.listFollowersByHandle, {
+      handle: myHandle,
+    }),
+  )
+
   // Mutations
   const saveProfileMutation = useConvexMutation(api.profiles.saveProfile)
   const evaluateAppMutation = useConvexMutation(api.apps.upsertAppAndEvaluate)
   const createAndAppraiseMutation = useConvexMutation(api.apps.createAndAppraiseSpecimen)
+  const toggleFollowMutation = useConvexMutation(api.follows.toggleFollow)
 
   const saveProfile = useMutation({ mutationFn: saveProfileMutation })
   const evaluateApp = useMutation({ mutationFn: evaluateAppMutation })
   const createAndAppraise = useMutation({ mutationFn: createAndAppraiseMutation })
+  const toggleFollow = useMutation({ mutationFn: toggleFollowMutation })
 
-  // Modals state
+  // Modals state & Tab selection
+  const [activeTab, setActiveTab] = useState<VerdictFilter>('all')
+  const [pendingFollowHandles, setPendingFollowHandles] = useState<Record<string, boolean>>({})
+  const [followModal, setFollowModal] = useState<{
+    isOpen: boolean
+    tab: 'following' | 'followers'
+  }>({
+    isOpen: false,
+    tab: 'following',
+  })
   const [showEvaluateModal, setShowEvaluateModal] = useState(false)
   const [targetAppId, setTargetAppId] = useState<Id<'apps'> | undefined>(undefined)
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
@@ -76,6 +106,17 @@ function DashboardPage() {
     utilityScore: number
     headline: string
   } | null>(null)
+
+  const handleToggleFollowCritic = async (targetHandle: string) => {
+    try {
+      setPendingFollowHandles((prev) => ({ ...prev, [targetHandle]: true }))
+      await toggleFollow.mutateAsync({ handle: targetHandle })
+    } catch {
+      // ignore
+    } finally {
+      setPendingFollowHandles((prev) => ({ ...prev, [targetHandle]: false }))
+    }
+  }
 
   const handleOpenDiscussion = (review: ReviewWithAppAndSocial) => {
     setActiveDiscussionReview(review)
@@ -165,6 +206,11 @@ function DashboardPage() {
           lgtmCount={lgtmCount}
           rottenCount={rottenCount}
           avgCraftGiven={avgCraftGiven}
+          followersCount={followStats.followersCount}
+          followingCount={followStats.followingCount}
+          activeTab={activeTab}
+          onSelectTab={(tab) => setActiveTab(tab as VerdictFilter)}
+          onOpenFollowList={(tab) => setFollowModal({ isOpen: true, tab })}
           onOpenCritiqueModal={() => {
             setTargetAppId(undefined)
             setShowEvaluateModal(true)
@@ -175,6 +221,10 @@ function DashboardPage() {
 
         <CritiqueFeedSection
           reviews={myReviews}
+          mode="profile"
+          isOwnProfile={true}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           onOpenCritiqueModal={() => {
             setTargetAppId(undefined)
             setCounterAppraisalReview(null)
@@ -237,6 +287,22 @@ function DashboardPage() {
         isOpen={Boolean(activeTasteCardReview)}
         onClose={() => setActiveTasteCardReview(null)}
         review={activeTasteCardReview}
+      />
+
+      {/* Followers & Following Modal */}
+      <FollowListModal
+        isOpen={followModal.isOpen}
+        onClose={() => setFollowModal((prev) => ({ ...prev, isOpen: false }))}
+        initialTab={followModal.tab}
+        profileHandle={myHandle}
+        profileDisplayName={profile?.displayName}
+        followingCritics={followingCritics as any}
+        followersCritics={followersCritics as any}
+        followingCount={followStats.followingCount}
+        followersCount={followStats.followersCount}
+        onToggleFollowCritic={handleToggleFollowCritic}
+        pendingFollowHandles={pendingFollowHandles}
+        viewerHandle={profile?.handle}
       />
     </div>
   )

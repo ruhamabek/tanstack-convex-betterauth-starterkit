@@ -1,4 +1,4 @@
-import { Sparkles, Link2, Plus } from 'lucide-react'
+import { Link2, Plus, Pencil } from 'lucide-react'
 import CriticAvatar from '../CriticAvatar'
 
 export interface FeedComposerProps {
@@ -37,7 +37,7 @@ export default function FeedComposer({
           <span className="truncate">
             Audit software, dissect craft, or drop a specimen...
           </span>
-          <Sparkles className="size-3.5 text-neutral-400 group-hover:text-amber-600 transition shrink-0 ml-2" />
+          <Pencil className="size-3.5 text-neutral-400 group-hover:text-amber-600 transition shrink-0 ml-2" />
         </button>
 
         {/* Action Buttons */}

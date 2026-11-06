@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react'
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../convex/_generated/api'
 import { AppSidebar } from '../components/app-sidebar'
 import { SiteHeader } from '../components/site-header'
 import { SidebarInset, SidebarProvider } from '../components/ui/sidebar'
+import CriticShowreelModal from '../components/dashboard/CriticShowreelModal'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: ({ context }) => {
@@ -35,6 +37,17 @@ function ProtectedLayout() {
     convexQueryClient.queryOptions(api.profiles.getMyProfile, {}),
   )
 
+  const [isStoryOpen, setIsStoryOpen] = useState(false)
+  useEffect(() => {
+    const handleOpenStory = () => setIsStoryOpen(true)
+    window.addEventListener('screenlog:open-showreel', handleOpenStory)
+    window.addEventListener('screenlog:open-drop-story', handleOpenStory)
+    return () => {
+      window.removeEventListener('screenlog:open-showreel', handleOpenStory)
+      window.removeEventListener('screenlog:open-drop-story', handleOpenStory)
+    }
+  }, [])
+
   return (
     <SidebarProvider
       style={
@@ -57,6 +70,15 @@ function ProtectedLayout() {
           <Outlet />
         </div>
       </SidebarInset>
+
+      {/* Global Critic Showreel Story Player */}
+      {isStoryOpen && (
+        <CriticShowreelModal
+          isOpen={isStoryOpen}
+          onClose={() => setIsStoryOpen(false)}
+          profile={profile ?? null}
+        />
+      )}
     </SidebarProvider>
   )
 }

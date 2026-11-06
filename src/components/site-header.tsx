@@ -6,11 +6,17 @@ export function SiteHeader() {
   const location = useLocation()
   const pageTitle = location.pathname.startsWith('/feed')
     ? 'Community Feed'
-    : location.pathname.startsWith('/bookmarks')
-      ? 'Bookmarks'
-      : location.pathname.startsWith('/dashboard')
-        ? 'Critic Profile'
-        : 'Screenlog'
+    : location.pathname.startsWith('/notifications')
+      ? 'Notifications'
+      : location.pathname.startsWith('/bookmarks')
+        ? 'Bookmarks'
+        : location.pathname.startsWith('/app/')
+          ? 'Consensus Hub'
+          : location.pathname.startsWith('/u/')
+            ? 'Critic Profile'
+            : location.pathname.startsWith('/dashboard')
+              ? 'My Profile'
+              : 'Screenlog'
 
   const triggerOpenEvaluate = () => {
     window.dispatchEvent(new CustomEvent('screenlog:open-evaluate'))
@@ -31,8 +37,20 @@ export function SiteHeader() {
         </span>
       </div>
 
-      {/* Right: Quick Action CTAs for mobile & tablet */}
+      {/* Right: Quick Action CTAs */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('screenlog:open-showreel'))
+            window.dispatchEvent(new CustomEvent('screenlog:open-drop-story'))
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-indigo-500/15 hover:opacity-90 border border-amber-500/30 px-3 py-1.5 text-xs font-bold text-neutral-900 transition active:scale-95 cursor-pointer shadow-2xs"
+          title="Watch Critic Showreel"
+        >
+          <Sparkles className="size-3.5 text-amber-600 animate-pulse" />
+          <span>Showreel</span>
+        </button>
         <button
           type="button"
           onClick={triggerOpenSpecimen}

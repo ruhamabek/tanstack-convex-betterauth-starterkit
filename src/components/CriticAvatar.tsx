@@ -11,6 +11,8 @@ export interface CriticAvatarProps {
   alt?: string
   rounded?: 'squircle' | 'full'
   interactive?: boolean
+  hasStory?: boolean
+  onStoryClick?: (e?: React.MouseEvent) => void
 }
 
 const SIZE_CLASSES: Record<CriticAvatarSize, string> = {
@@ -35,6 +37,8 @@ export default function CriticAvatar({
   alt = 'Critic Avatar',
   rounded = 'squircle',
   interactive = false,
+  hasStory = false,
+  onStoryClick,
 }: CriticAvatarProps) {
   const initialUrl = resolveAvatarUrl(avatarUrl, seed)
   const [currentSrc, setCurrentSrc] = useState(initialUrl)
@@ -56,6 +60,35 @@ export default function CriticAvatar({
 
   const sizeClass = SIZE_CLASSES[size]
   const roundedClass = ROUNDED_CLASSES[rounded]
+
+  if (hasStory) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onStoryClick?.(e)
+        }}
+        title="Watch Critic Showreel"
+        className={`relative inline-flex items-center justify-center p-[2.5px] rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 hover:scale-105 active:scale-95 transition cursor-pointer shadow-xs group ${className}`}
+      >
+        <div className="bg-canvas p-0.5 rounded-full size-full flex items-center justify-center">
+          <div
+            className={`relative inline-flex items-center justify-center shrink-0 bg-desk overflow-hidden select-none ${sizeClass} rounded-full`}
+          >
+            <img
+              src={currentSrc}
+              alt={alt}
+              onError={handleError}
+              loading="lazy"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      </button>
+    )
+  }
 
   return (
     <div

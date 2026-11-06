@@ -45,10 +45,196 @@ export const getBySlug = query({
     slug: v.string(),
   },
   handler: async (ctx, args) => {
+    const cleanSlug = args.slug.trim().toLowerCase()
     return await ctx.db
       .query('apps')
-      .withIndex('by_slug', (q) => q.eq('slug', args.slug))
+      .withIndex('by_slug', (q) => q.eq('slug', cleanSlug))
       .first()
+  },
+})
+
+export const getAppConsensus = query({
+  args: {
+    slug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const cleanSlug = args.slug.trim().toLowerCase()
+    let app = await ctx.db
+      .query('apps')
+      .withIndex('by_slug', (q) => q.eq('slug', cleanSlug))
+      .first()
+
+    // Fallback: search by name
+    if (!app) {
+      const allApps = await ctx.db.query('apps').collect()
+      app =
+        allApps.find(
+          (a) =>
+            a.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanSlug ||
+            a.name.toLowerCase() === cleanSlug,
+        ) || null
+    }
+
+    // Auto-seed known trending apps if not yet in database
+    const KNOWN_TRENDING: Record<
+      string,
+      {
+        name: string
+        category: string
+        tagline: string
+        craftScore: number
+        utilityScore: number
+        iconUrl: string
+        status: string
+      }
+    > = {
+      linear: {
+        name: 'Linear',
+        category: 'Issue Tracking',
+        tagline: 'The gold standard for keyboard-first, high-performance issue tracking and project planning.',
+        craftScore: 96,
+        utilityScore: 89,
+        iconUrl: 'https://linear.app/favicon.ico',
+        status: 'Certified LGTM',
+      },
+      raycast: {
+        name: 'Raycast',
+        category: 'Productivity & Launcher',
+        tagline: 'Supercharged productivity launcher replacing spotlight with extensible craft micro-tools.',
+        craftScore: 98,
+        utilityScore: 94,
+        iconUrl: 'https://www.raycast.com/favicon.ico',
+        status: 'Certified LGTM',
+      },
+      'arc-browser-v2': {
+        name: 'Arc Browser (v2)',
+        category: 'Web Browser',
+        tagline: 'The chrome-free spatial browser exploring tactile spaces and easel canvases.',
+        craftScore: 92,
+        utilityScore: 48,
+        iconUrl: 'https://arc.net/favicon.ico',
+        status: 'Needs Polish',
+      },
+      'cash-card-haptics': {
+        name: 'Cash Card Haptics',
+        category: 'Mobbin Flow',
+        tagline: 'Tactile haptic feedback and physics-based card spring simulations.',
+        craftScore: 95,
+        utilityScore: 92,
+        iconUrl: 'https://cash.app/favicon.ico',
+        status: 'Certified LGTM',
+      },
+    }
+
+    if (!app && KNOWN_TRENDING[cleanSlug]) {
+      const info = KNOWN_TRENDING[cleanSlug]
+      return {
+        app: {
+          _id: `synthetic_${cleanSlug}` as any,
+          _creationTime: Date.now() - 86400000,
+          name: info.name,
+          slug: cleanSlug,
+          category: info.category,
+          tagline: info.tagline,
+          description: undefined as string | undefined,
+          craftScore: info.craftScore,
+          utilityScore: info.utilityScore,
+          reviewCount: 142,
+          status: info.status,
+          iconUrl: info.iconUrl,
+          websiteUrl: undefined as string | undefined,
+          sourceUrl: undefined as string | undefined,
+          sourceAuthor: undefined as string | undefined,
+          sourceType: 'product' as string | undefined,
+          mediaUrl: undefined as string | undefined,
+          createdAt: Date.now() - 86400000,
+        },
+        surfaces: [
+          {
+            name: 'Command Palette',
+            count: 48,
+            avgCraft: info.craftScore,
+            avgUtility: info.utilityScore,
+          },
+          {
+            name: 'Overall Experience',
+            count: 94,
+            avgCraft: info.craftScore,
+            avgUtility: info.utilityScore,
+          },
+        ],
+        reviewsCount: 0,
+      }
+    }
+
+    if (!app) return null
+
+    // Get all reviews for this app
+    const reviews = await ctx.db
+      .query('reviews')
+      .withIndex('by_app', (q) => q.eq('appId', app._id))
+      .collect()
+
+    const reviewCount = reviews.length
+    const totalCraft = reviews.reduce((sum, r) => sum + r.craftScore, 0)
+    const totalUtility = reviews.reduce((sum, r) => sum + r.utilityScore, 0)
+    const avgCraft =
+      reviewCount > 0 ? Math.round(totalCraft / reviewCount) : app.craftScore
+    const avgUtility =
+      reviewCount > 0 ? Math.round(totalUtility / reviewCount) : app.utilityScore
+
+    // Determine status stamp
+    let status = app.status
+    if (reviewCount > 0) {
+      if (avgCraft >= 90) status = 'Certified LGTM'
+      else if (avgCraft >= 70 && avgUtility < 70) status = 'Dribbble Dilemma'
+      else if (avgCraft >= 65) status = 'Needs Polish'
+      else status = 'Rotten'
+    }
+
+    // Extract feature surfaces
+    const surfacesMap = new Map<
+      string,
+      { count: number; totalCraft: number; totalUtility: number }
+    >()
+    for (const r of reviews) {
+      const surface = r.featureName?.trim() || 'Overall Experience'
+      const existing = surfacesMap.get(surface) || {
+        count: 0,
+        totalCraft: 0,
+        totalUtility: 0,
+      }
+      surfacesMap.set(surface, {
+        count: existing.count + 1,
+        totalCraft: existing.totalCraft + r.craftScore,
+        totalUtility: existing.totalUtility + r.utilityScore,
+      })
+    }
+
+    const surfaces = Array.from(surfacesMap.entries()).map(([name, data]) => ({
+      name,
+      count: data.count,
+      avgCraft: Math.round(data.totalCraft / data.count),
+      avgUtility: Math.round(data.totalUtility / data.count),
+    }))
+
+    let mediaUrl = app.mediaUrl
+    if (!mediaUrl && app.mediaStorageId) {
+      mediaUrl = (await ctx.storage.getUrl(app.mediaStorageId)) || undefined
+    }
+
+    return {
+      app: {
+        ...app,
+        mediaUrl,
+        craftScore: avgCraft,
+        utilityScore: avgUtility,
+        reviewCount: Math.max(reviewCount, app.reviewCount),
+        status,
+      },
+      surfaces,
+      reviewsCount: reviewCount,
+    }
   },
 })
 
@@ -433,6 +619,28 @@ export const upsertAppAndEvaluate = mutation({
       createdAt: now,
       updatedAt: now,
     })
+
+    // Send quote notification to parent review author
+    if (args.parentReviewId) {
+      const parentReview = await ctx.db.get(args.parentReviewId)
+      if (parentReview && parentReview.userId !== userId) {
+        const app = await ctx.db.get(appId)
+        await ctx.db.insert('notifications', {
+          userId: parentReview.userId,
+          actorUserId: userId,
+          actorHandle: profile.handle,
+          actorDisplayName: profile.displayName,
+          actorAvatarUrl: profile.avatarUrl,
+          type: 'quote',
+          reviewId,
+          appName: app?.name,
+          appIconUrl: app?.iconUrl,
+          previewText: args.headline.trim(),
+          read: false,
+          createdAt: now,
+        })
+      }
+    }
 
     // 3. Update profile review count
     const newReviewsCount = (profile.reviewsCount || 0) + 1

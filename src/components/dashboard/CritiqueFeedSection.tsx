@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Sparkles, Plus } from 'lucide-react'
+import { Plus, Inbox } from 'lucide-react'
 import ScorecardReviewCard, { type ReviewWithAppAndSocial } from './ScorecardReviewCard'
 
 export type VerdictFilter =
@@ -14,7 +14,10 @@ export type VerdictFilter =
 export interface CritiqueFeedSectionProps {
   reviews: ReviewWithAppAndSocial[]
   mode?: 'profile' | 'community'
+  isOwnProfile?: boolean
   showTabs?: boolean
+  activeTab?: VerdictFilter
+  onTabChange?: (tab: VerdictFilter) => void
   onOpenCritiqueModal: () => void
   onOpenDiscussion?: (review: ReviewWithAppAndSocial) => void
   onExportTasteCard?: (review: ReviewWithAppAndSocial) => void
@@ -24,13 +27,22 @@ export interface CritiqueFeedSectionProps {
 export default function CritiqueFeedSection({
   reviews,
   mode = 'profile',
+  isOwnProfile = true,
   showTabs = true,
+  activeTab,
+  onTabChange,
   onOpenCritiqueModal,
   onOpenDiscussion,
   onExportTasteCard,
   onCounterAppraise,
 }: CritiqueFeedSectionProps) {
-  const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>('all')
+  const [internalFilter, setInternalFilter] = useState<VerdictFilter>('all')
+  const verdictFilter = activeTab !== undefined ? activeTab : internalFilter
+
+  const handleSelectTab = (tab: VerdictFilter) => {
+    setInternalFilter(tab)
+    onTabChange?.(tab)
+  }
 
   const lgtmCount = reviews.filter((r) => r.verdict === 'lgtm').length
   const mixedCount = reviews.filter((r) => r.verdict === 'mixed').length
@@ -62,7 +74,7 @@ export default function CritiqueFeedSection({
           { id: 'rotten', label: 'Rotten', count: rottenCount },
         ]
       : [
-          { id: 'all', label: 'All', count: reviews.length },
+          { id: 'all', label: 'Evaluations', count: reviews.length },
           { id: 'lgtm', label: 'Certified LGTM', count: lgtmCount },
           { id: 'mixed', label: 'Needs Polish', count: mixedCount },
           { id: 'rotten', label: 'Rotten', count: rottenCount },
@@ -79,7 +91,7 @@ export default function CritiqueFeedSection({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setVerdictFilter(tab.id)}
+                onClick={() => handleSelectTab(tab.id)}
                 className={`flex-1 min-w-[100px] py-3.5 px-3 text-center text-xs sm:text-[13px] font-bold transition hover:bg-black/5 relative cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   isActive
                     ? 'text-foreground font-black'
@@ -105,32 +117,42 @@ export default function CritiqueFeedSection({
       {filteredReviews.length === 0 ? (
         <div className="p-12 text-center flex flex-col items-center justify-center">
           <div className="size-14 rounded-2xl bg-desk border border-black/10 flex items-center justify-center mb-4 shadow-2xs">
-            <Sparkles className="size-6 text-amber-600" />
+            <Inbox className="size-6 text-amber-600" />
           </div>
           <h3 className="text-base sm:text-lg font-black text-foreground">
             {mode === 'community'
               ? verdictFilter === 'all'
                 ? 'No community appraisals recorded yet'
                 : `No ${verdictFilter.replace('_', ' ').toUpperCase()} takes found`
-              : verdictFilter === 'all'
-                ? 'No evaluations filed yet'
-                : `No ${verdictFilter.toUpperCase()} evaluations found`}
+              : !isOwnProfile
+                ? verdictFilter === 'all'
+                  ? 'No evaluations yet'
+                  : `No ${verdictFilter.toUpperCase()} evaluations yet`
+                : verdictFilter === 'all'
+                  ? 'No evaluations filed yet'
+                  : `No ${verdictFilter.toUpperCase()} evaluations found`}
           </h3>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mt-1.5 mb-6">
             {mode === 'community'
               ? 'The consortium awaits your appraisal. Grade an existing app or index a design specimen to start the consensus debate.'
-              : verdictFilter === 'all'
-                ? 'Your desk is clean. Audit your first software app or ingest a specimen to start your consensus timeline.'
-                : 'Try selecting another tab above or file a new software evaluation.'}
+              : !isOwnProfile
+                ? verdictFilter === 'all'
+                  ? 'This critic has not filed any software evaluations or critiques yet.'
+                  : `This critic has not filed any ${verdictFilter.toUpperCase()} evaluations yet.`
+                : verdictFilter === 'all'
+                  ? 'Your desk is clean. Audit your first software app or ingest a specimen to start your consensus timeline.'
+                  : 'Try selecting another tab above or file a new software evaluation.'}
           </p>
-          <button
-            type="button"
-            onClick={onOpenCritiqueModal}
-            className="inline-flex items-center gap-2 rounded-full bg-foreground hover:bg-neutral-800 px-5 py-2.5 text-xs font-bold text-background shadow-xs transition active:scale-95 cursor-pointer"
-          >
-            <Plus className="size-3.5 stroke-[3]" />
-            <span>{mode === 'community' ? 'Audit an Artifact' : 'File Your First Critique'}</span>
-          </button>
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={onOpenCritiqueModal}
+              className="inline-flex items-center gap-2 rounded-full bg-foreground hover:bg-neutral-800 px-5 py-2.5 text-xs font-bold text-background shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <Plus className="size-3.5 stroke-[3]" />
+              <span>{mode === 'community' ? 'Audit an Artifact' : 'File Your First Critique'}</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-4 p-3.5 sm:p-5">
@@ -148,3 +170,4 @@ export default function CritiqueFeedSection({
     </section>
   )
 }
+

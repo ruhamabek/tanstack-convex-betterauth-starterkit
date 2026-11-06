@@ -1,15 +1,16 @@
 import * as React from 'react'
 import {
   Home,
+  Bell,
   Bookmark,
-  Flame,
   Sparkles,
-  Award,
   User,
   Plus,
-  Globe,
+  Pencil,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { useQuery as useConvexReactQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
 import {
   Sidebar,
@@ -23,52 +24,41 @@ import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
 import Logo from './Logo'
 
-const navData = {
-  navMain: [
-    {
-      title: 'Home Feed',
-      url: '/feed',
-      icon: Home,
-    },
-    {
-      title: 'Bookmarks',
-      url: '/bookmarks',
-      icon: Bookmark,
-    },
-    {
-      title: 'Profile',
-      url: '/dashboard',
-      icon: User,
-    },
-    {
-      title: 'Consensus Layer',
-      url: '/#consensus',
-      icon: Flame,
-    },
-    {
-      title: 'Thursday Drop',
-      url: '/#drops',
-      icon: Sparkles,
-    },
-    {
-      title: 'Taste Scorecards',
-      url: '/#card-maker',
-      icon: Award,
-    },
-    {
-      title: 'Public Showcase',
-      url: '/',
-      icon: Globe,
-    },
-  ],
-}
-
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user?: { name?: string; email?: string; image?: string | null } | null
   profile?: Doc<'profiles'> | null
 }
 
 export function AppSidebar({ user, profile, ...props }: AppSidebarProps) {
+  const unreadCount = useConvexReactQuery(api.notifications.getUnreadCount, {}) || 0
+
+  const navMainItems = React.useMemo(
+    () => [
+      {
+        title: 'Home Feed',
+        url: '/feed',
+        icon: Home,
+      },
+      {
+        title: 'Notifications',
+        url: '/notifications',
+        icon: Bell,
+        badge: unreadCount,
+      },
+      {
+        title: 'Bookmarks',
+        url: '/bookmarks',
+        icon: Bookmark,
+      },
+      {
+        title: 'Profile',
+        url: '/dashboard',
+        icon: User,
+      },
+    ],
+    [unreadCount],
+  )
+
   const triggerOpenEvaluate = () => {
     window.dispatchEvent(new CustomEvent('screenlog:open-evaluate'))
   }
@@ -84,7 +74,7 @@ export function AppSidebar({ user, profile, ...props }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-1 px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition group-data-[collapsible=icon]:justify-center" title="Screenlog">
-              <Logo size="md" className="p-0" textClassName="group-data-[collapsible=icon]:hidden" />
+              <Logo size="md" href={null} className="p-0" textClassName="group-data-[collapsible=icon]:hidden" />
             </Link>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -92,7 +82,7 @@ export function AppSidebar({ user, profile, ...props }: AppSidebarProps) {
 
       {/* Main Navigation & Action CTAs */}
       <SidebarContent>
-        <NavMain items={navData.navMain} />
+        <NavMain items={navMainItems} />
 
         {/* Action Buttons: Pushed to the bottom directly above profile */}
         <div className="mt-auto pt-4 px-1 space-y-2 select-none group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:space-y-2 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
@@ -113,7 +103,7 @@ export function AppSidebar({ user, profile, ...props }: AppSidebarProps) {
             className="w-full rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-900 font-bold py-2.5 px-4 text-xs transition active:scale-95 shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 group-data-[collapsible=icon]:hidden"
             title="Ingest Dribbble, Figma, or Mobbin specimen"
           >
-            <Sparkles className="size-3.5 text-amber-700" />
+            <Pencil className="size-3.5 text-amber-700" />
             <span>Ingest Specimen</span>
           </button>
 

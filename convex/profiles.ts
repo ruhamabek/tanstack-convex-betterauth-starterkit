@@ -40,7 +40,59 @@ export const getByHandle = query({
       .withIndex('by_handle', (q) => q.eq('handle', cleanHandle))
       .first()
 
-    if (!profile) return null
+    if (!profile) {
+      // Check if handle matches any review or pioneer critic
+      const anyReview = await ctx.db
+        .query('reviews')
+        .filter((q) => q.eq(q.field('authorHandle'), cleanHandle))
+        .first()
+
+      const PIONEERS: Record<string, { displayName: string; role: string; bio: string; criticNumber: number }> = {
+        subgrid_sorcerer: {
+          displayName: 'Marcus Vance',
+          role: 'Staff Frontend Engineer',
+          bio: 'Measuring subgrid rhythm, layout shift, and tactile interactive microcopy.',
+          criticNumber: 14,
+        },
+        pixel_snob: {
+          displayName: 'Elena Rostova',
+          role: 'Principal Product Designer',
+          bio: 'Cynical about border-radius, obsessed with typography weight hierarchies.',
+          criticNumber: 22,
+        },
+        kerning_ghost: {
+          displayName: 'Alex Thorne',
+          role: 'Verified Builder',
+          bio: 'Audit of font rendering engines and macOS native desktop feel.',
+          criticNumber: 9,
+        },
+      }
+
+      if (anyReview || PIONEERS[cleanHandle]) {
+        const pioneer = PIONEERS[cleanHandle]
+        return {
+          _id: `synthetic_${cleanHandle}` as any,
+          _creationTime: anyReview?.createdAt ?? Date.now() - 86400000,
+          userId: anyReview?.userId ?? `mock_${cleanHandle}`,
+          handle: cleanHandle,
+          displayName:
+            pioneer?.displayName ??
+            cleanHandle
+              .split('_')
+              .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' '),
+          role: pioneer?.role ?? 'Founding Interface Critic',
+          bio: pioneer?.bio ?? 'Software evaluator & interface critic in the public consensus layer.',
+          badge: 'Founding Critic',
+          criticNumber: pioneer?.criticNumber ?? 1,
+          reviewsCount: anyReview ? 1 : 0,
+          createdAt: anyReview?.createdAt ?? Date.now() - 86400000,
+          updatedAt: anyReview?.createdAt ?? Date.now(),
+        }
+      }
+
+      return null
+    }
 
     let bannerUrl = profile.bannerUrl
     if (!bannerUrl && profile.bannerStorageId) {

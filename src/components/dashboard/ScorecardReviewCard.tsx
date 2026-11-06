@@ -15,6 +15,7 @@ import {
   Maximize2,
 } from 'lucide-react'
 import { useConvexMutation } from '@convex-dev/react-query'
+import { Link } from '@tanstack/react-router'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import CriticAvatar from '../CriticAvatar'
@@ -205,23 +206,29 @@ export default function ScorecardReviewCard({
 
       {/* Top Header: Critic Avatar, Handle, Timestamp & Options */}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3 min-w-0">
+        <Link
+          to="/u/$handle"
+          params={{ handle: review.authorHandle }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-3 min-w-0 group/author !no-underline"
+          title={`View @${review.authorHandle}'s critic profile`}
+        >
           <CriticAvatar
             avatarUrl={review.authorAvatarUrl}
             seed={review.authorHandle}
             size="md"
             rounded="squircle"
-            className="border border-black/10 shadow-2xs"
+            className="border border-black/10 shadow-2xs group-hover/author:scale-105 transition-transform"
           />
           <div className="min-w-0">
-            <h4 className="font-black text-[15px] sm:text-base text-foreground leading-tight truncate">
+            <h4 className="font-black text-[15px] sm:text-base text-foreground leading-tight truncate group-hover/author:underline">
               @{review.authorHandle}
             </h4>
             <p className="text-xs text-neutral-400 font-medium">
               Posted {relativeDate}
             </p>
           </div>
-        </div>
+        </Link>
 
         
       </div>
@@ -234,9 +241,22 @@ export default function ScorecardReviewCard({
       </div>
 
       {/* App / Specimen Title */}
-      <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight mb-1">
-        {review.app?.name ?? 'Software Appraisal'}
-      </h3>
+      {review.app?.slug ? (
+        <Link
+          to="/app/$slug"
+          params={{ slug: review.app.slug }}
+          className="inline-block group/app !no-underline"
+          title={`View ${review.app.name} consensus scorecard`}
+        >
+          <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight mb-1 group-hover/app:underline">
+            {review.app.name}
+          </h3>
+        </Link>
+      ) : (
+        <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight mb-1">
+          {review.app?.name ?? 'Software Appraisal'}
+        </h3>
+      )}
 
       {/* Attribution Line */}
       {(review.app?.sourceAuthor || review.app?.sourceType) && (
@@ -264,20 +284,27 @@ export default function ScorecardReviewCard({
       {review.parentReview && (
         <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-[#F6F4ED] border border-black/8 relative">
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-2">
+            <Link
+              to="/u/$handle"
+              params={{ handle: review.parentReview.authorHandle }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-2 group/parentAuthor !no-underline"
+              title={`View @${review.parentReview.authorHandle}'s critic profile`}
+            >
               <CriticAvatar
                 avatarUrl={review.parentReview.authorAvatarUrl}
                 seed={review.parentReview.authorHandle}
                 size="xs"
                 rounded="squircle"
+                className="group-hover/parentAuthor:scale-105 transition-transform"
               />
-              <span className="text-xs font-bold text-foreground">
+              <span className="text-xs font-bold text-foreground group-hover/parentAuthor:underline">
                 @{review.parentReview.authorHandle}
               </span>
               <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 bg-neutral-200/60 px-1.5 py-0.2 rounded font-bold">
                 Quoted Take
               </span>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-2 text-[10px] font-mono font-bold">
               <span className="text-emerald-700 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">

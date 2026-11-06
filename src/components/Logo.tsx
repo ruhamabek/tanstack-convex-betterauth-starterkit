@@ -6,7 +6,7 @@ interface LogoProps {
   textClassName?: string
   size?: 'sm' | 'md' | 'lg'
   showText?: boolean
-  href?: string
+  href?: string | null
 }
 
 const sizeConfig = {

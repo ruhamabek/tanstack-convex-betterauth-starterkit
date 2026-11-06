@@ -120,4 +120,35 @@ export default defineSchema({
   })
     .index('by_review', ['reviewId'])
     .index('by_user', ['userId']),
+
+  // Critic Social Graph / Following System
+  follows: defineTable({
+    followerUserId: v.string(),
+    followingHandle: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_follower', ['followerUserId'])
+    .index('by_following_handle', ['followingHandle'])
+    .index('by_follower_and_handle', ['followerUserId', 'followingHandle']),
+
+  // Critic Activity & Notifications Hub
+  notifications: defineTable({
+    userId: v.string(), // Recipient critic's userId
+    actorUserId: v.string(), // Critic who performed the action
+    actorHandle: v.string(), // @handle of actor
+    actorDisplayName: v.string(), // Display name of actor
+    actorAvatarUrl: v.optional(v.string()), // Avatar URL
+    type: v.string(), // "follow" | "endorse" | "comment" | "quote"
+    reviewId: v.optional(v.id('reviews')), // Related review if endorse, comment, or quote
+    commentId: v.optional(v.id('reviewComments')), // Related comment if comment
+    targetHandle: v.optional(v.string()), // Target handle
+    appName: v.optional(v.string()), // Name of app being evaluated (for quick context)
+    appIconUrl: v.optional(v.string()), // App icon
+    previewText: v.optional(v.string()), // Snippet of comment text, quote text, or review headline
+    read: v.boolean(), // Read / unread status
+    createdAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_and_read', ['userId', 'read'])
+    .index('by_user_and_created', ['userId', 'createdAt']),
 })

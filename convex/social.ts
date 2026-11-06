@@ -26,6 +26,31 @@ export const toggleEndorse = mutation({
         type: 'endorse',
         createdAt: Date.now(),
       })
+
+      // Send endorse notification to review author
+      const review = await ctx.db.get(args.reviewId)
+      if (review && review.userId !== userId) {
+        const userProfile = await ctx.db
+          .query('profiles')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .first()
+        const app = await ctx.db.get(review.appId)
+
+        await ctx.db.insert('notifications', {
+          userId: review.userId,
+          actorUserId: userId,
+          actorHandle: userProfile?.handle || 'critic',
+          actorDisplayName: userProfile?.displayName || user.name || 'A Critic',
+          actorAvatarUrl: userProfile?.avatarUrl,
+          type: 'endorse',
+          reviewId: args.reviewId,
+          appName: app?.name,
+          appIconUrl: app?.iconUrl,
+          previewText: review.headline,
+          read: false,
+          createdAt: Date.now(),
+        })
+      }
     }
 
     const allReactions = await ctx.db
@@ -136,6 +161,27 @@ export const addComment = mutation({
       content: cleanContent,
       createdAt: Date.now(),
     })
+
+    // Send comment notification to review author
+    const review = await ctx.db.get(args.reviewId)
+    if (review && review.userId !== userId) {
+      const app = await ctx.db.get(review.appId)
+      await ctx.db.insert('notifications', {
+        userId: review.userId,
+        actorUserId: userId,
+        actorHandle: profile.handle,
+        actorDisplayName: profile.displayName,
+        actorAvatarUrl: profile.avatarUrl,
+        type: 'comment',
+        reviewId: args.reviewId,
+        commentId,
+        appName: app?.name,
+        appIconUrl: app?.iconUrl,
+        previewText: cleanContent.slice(0, 140),
+        read: false,
+        createdAt: Date.now(),
+      })
+    }
 
     return commentId
   },

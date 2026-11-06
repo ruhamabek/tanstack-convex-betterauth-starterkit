@@ -34,12 +34,6 @@ export default function Header() {
               Consensus
             </a>
             <a
-              href="/#drops"
-              className="text-xs md:text-[13px] font-medium !text-foreground !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
-            >
-              Drops
-            </a>
-            <a
               href="/#card-maker"
               className="text-xs md:text-[13px] font-medium !text-foreground !no-underline px-3 py-1.5 rounded-full transition-colors hover:bg-black/5"
             >

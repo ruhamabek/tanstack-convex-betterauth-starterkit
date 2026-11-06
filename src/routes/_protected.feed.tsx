@@ -1,10 +1,11 @@
 import { useConvexMutation } from '@convex-dev/react-query'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { SlidersHorizontal, Check, X } from 'lucide-react'
+import { SlidersHorizontal, Check, X, Users, Inbox } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
+import CriticAvatar from '../components/CriticAvatar'
 import FeedComposer from '../components/dashboard/FeedComposer'
 import CritiqueFeedSection from '../components/dashboard/CritiqueFeedSection'
 import DashboardRightRail from '../components/dashboard/DashboardRightRail'
@@ -28,6 +29,12 @@ export const Route = createFileRoute('/_protected/feed')({
       ),
       context.queryClient.ensureQueryData(
         context.convexQueryClient.queryOptions(api.reviews.listCommunityFeed, {}),
+      ),
+      context.queryClient.ensureQueryData(
+        context.convexQueryClient.queryOptions(api.follows.getMyFollowingHandles, {}),
+      ),
+      context.queryClient.ensureQueryData(
+        context.convexQueryClient.queryOptions(api.follows.listSuggestedCritics, { limit: 8 }),
       ),
     ])
 
@@ -70,12 +77,21 @@ function CommunityFeedPage() {
   const { data: communityReviews = [] } = useQuery(
     convexQueryClient.queryOptions(api.reviews.listCommunityFeed, {}),
   )
+  const { data: followingHandles = [] } = useQuery(
+    convexQueryClient.queryOptions(api.follows.getMyFollowingHandles, {}),
+  )
+  const { data: suggestedCritics = [] } = useQuery(
+    convexQueryClient.queryOptions(api.follows.listSuggestedCritics, { limit: 8 }),
+  )
 
   // Tab & Filter state
   const [activeMainTab, setActiveMainTab] = useState<MainTab>('for_you')
   const [activeVerdictFilter, setActiveVerdictFilter] =
     useState<VerdictFilter>('all')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [pendingFollowHandles, setPendingFollowHandles] = useState<
+    Record<string, boolean>
+  >({})
   const filterMenuRef = useRef<HTMLDivElement>(null)
 
   // Close filter dropdown on outside click
@@ -92,15 +108,31 @@ function CommunityFeedPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Follow toggle mutation
+  const toggleFollowMutation = useConvexMutation(api.follows.toggleFollow)
+  const handleToggleFollowCritic = async (handle: string) => {
+    setPendingFollowHandles((prev) => ({ ...prev, [handle]: true }))
+    try {
+      await toggleFollowMutation({ handle })
+    } catch {
+      // ignore
+    } finally {
+      setPendingFollowHandles((prev) => ({ ...prev, [handle]: false }))
+    }
+  }
+
   // Filter reviews
   const filteredReviews = useMemo(() => {
     let result = communityReviews
 
-    // Following tab: prioritize reviews by other critics
-    if (activeMainTab === 'following' && user) {
-      const currentUserId = String(user._id)
-      const others = result.filter((r) => r.userId !== currentUserId)
-      result = others.length > 0 ? others : result
+    // Following tab: only reviews authored by critics the user follows
+    if (activeMainTab === 'following') {
+      const followingSet = new Set(
+        followingHandles.map((h) => h.toLowerCase().replace(/^@/, '')),
+      )
+      result = result.filter((r) =>
+        followingSet.has(r.authorHandle.toLowerCase().replace(/^@/, '')),
+      )
     }
 
     // Verdict Filter
@@ -117,7 +149,7 @@ function CommunityFeedPage() {
     }
 
     return result
-  }, [communityReviews, activeMainTab, activeVerdictFilter, user])
+  }, [communityReviews, activeMainTab, followingHandles, activeVerdictFilter])
 
   // Mutations
   const evaluateAppMutation = useConvexMutation(api.apps.upsertAppAndEvaluate)
@@ -320,20 +352,137 @@ function CommunityFeedPage() {
         )}
 
         {/* The Stream */}
-        <CritiqueFeedSection
-          reviews={filteredReviews}
-          showTabs={false}
-          mode="community"
-          onOpenCritiqueModal={() => {
-            setTargetAppId(undefined)
-            setCounterAppraisalReview(null)
-            setInitialDraftHeadline('')
-            setShowEvaluateModal(true)
-          }}
-          onOpenDiscussion={handleOpenDiscussion}
-          onExportTasteCard={handleExportTasteCard}
-          onCounterAppraise={handleCounterAppraise}
-        />
+        {activeMainTab === 'following' && followingHandles.length === 0 ? (
+          <div className="p-5 sm:p-8 flex flex-col items-center text-center select-none animate-in fade-in duration-200">
+            <div className="size-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-700 mb-3 shadow-2xs">
+              <Users className="size-7 stroke-[1.75]" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
+              Your Following Feed is Empty
+            </h3>
+            <p className="text-xs sm:text-sm text-neutral-500 max-w-md mx-auto mt-1 mb-6 leading-relaxed">
+              Follow fellow software critics, product crafters, and interface connoisseurs to build your curated stream of evaluations.
+            </p>
+
+            {/* Suggested Critics Card Shelf */}
+            <div className="w-full text-left bg-white border border-black/10 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-black/5">
+                <div>
+                  <h4 className="text-sm font-black text-foreground tracking-tight">
+                    Suggested Critics to Follow
+                  </h4>
+                  <p className="text-xs text-neutral-400">
+                    Pioneers in the Certified LGTM Genesis Consortium
+                  </p>
+                </div>
+                 
+              </div>
+
+              <div className="divide-y divide-black/5">
+                {suggestedCritics.map((critic) => {
+                  const cleanH = critic.handle.toLowerCase().replace(/^@/, '')
+                  const isFollowing = followingHandles.some(
+                    (h) => h.toLowerCase().replace(/^@/, '') === cleanH,
+                  )
+                  const isPending = !!pendingFollowHandles[critic.handle]
+
+                  return (
+                    <div
+                      key={critic.handle}
+                      className="py-3.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3.5"
+                    >
+                      <Link
+                        to="/u/$handle"
+                        params={{ handle: critic.handle }}
+                        className="flex items-center gap-3 min-w-0 group hover:opacity-85 transition !no-underline"
+                      >
+                        <CriticAvatar
+                          avatarUrl={critic.avatarUrl}
+                          seed={critic.handle}
+                          size="md"
+                          className="shrink-0 border border-black/10 shadow-2xs group-hover:scale-105 transition-transform"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-foreground group-hover:underline truncate">
+                              {critic.displayName}
+                            </span>
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-amber-500/15 text-amber-900 border border-amber-600/20 shrink-0">
+                              #{critic.criticNumber}
+                            </span>
+                          </div>
+                          <p className="text-xs font-mono text-neutral-400 truncate">
+                            @{critic.handle}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 truncate mt-0.5">
+                            {critic.role}
+                          </p>
+                        </div>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFollowCritic(critic.handle)}
+                        disabled={isPending}
+                        className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition cursor-pointer active:scale-95 ${
+                          isFollowing
+                            ? 'bg-white text-foreground border border-black/20 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 group/unfollow'
+                            : 'bg-foreground text-background hover:bg-neutral-800 shadow-2xs'
+                        }`}
+                      >
+                        {isFollowing ? (
+                          <>
+                            <span className="group-hover/unfollow:hidden">Following</span>
+                            <span className="hidden group-hover/unfollow:inline">Unfollow</span>
+                          </>
+                        ) : (
+                          'Follow'
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ) : activeMainTab === 'following' && filteredReviews.length === 0 ? (
+          <div className="px-6 py-20 text-center flex flex-col items-center justify-center select-none animate-in fade-in duration-200">
+            <div className="size-14 rounded-2xl bg-neutral-100 border border-black/10 flex items-center justify-center text-neutral-400 mb-3 shadow-2xs">
+              <Inbox className="size-7 stroke-[1.5]" />
+            </div>
+            <h3 className="text-lg font-black text-foreground tracking-tight mb-1">
+              No recent critiques
+            </h3>
+            <p className="text-xs sm:text-sm text-neutral-500 max-w-sm mx-auto leading-relaxed mb-6">
+              The critics you follow haven’t published any reviews matching this filter yet. Check the <strong>For you</strong> feed to discover more software specimens.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveMainTab('for_you')
+                setActiveVerdictFilter('all')
+              }}
+              className="px-5 py-2 rounded-full bg-foreground hover:bg-neutral-800 text-background text-xs font-bold transition active:scale-95 cursor-pointer shadow-xs"
+            >
+              Explore For You Feed
+            </button>
+          </div>
+        ) : (
+          <CritiqueFeedSection
+            reviews={filteredReviews}
+            showTabs={false}
+            mode="community"
+            onOpenCritiqueModal={() => {
+              setTargetAppId(undefined)
+              setCounterAppraisalReview(null)
+              setInitialDraftHeadline('')
+              setShowEvaluateModal(true)
+            }}
+            onOpenDiscussion={handleOpenDiscussion}
+            onExportTasteCard={handleExportTasteCard}
+            onCounterAppraise={handleCounterAppraise}
+          />
+        )}
       </main>
 
       {/* Right Column: Stationary Discovery Rail */}
