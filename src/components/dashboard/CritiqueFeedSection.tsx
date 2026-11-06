@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Inbox } from 'lucide-react'
 import ScorecardReviewCard, { type ReviewWithAppAndSocial } from './ScorecardReviewCard'
+import CritiqueFeedSkeleton from './CritiqueFeedSkeleton'
 
 export type VerdictFilter =
   | 'all'
@@ -13,6 +14,7 @@ export type VerdictFilter =
 
 export interface CritiqueFeedSectionProps {
   reviews: ReviewWithAppAndSocial[]
+  isLoading?: boolean
   mode?: 'profile' | 'community'
   isOwnProfile?: boolean
   showTabs?: boolean
@@ -26,6 +28,7 @@ export interface CritiqueFeedSectionProps {
 
 export default function CritiqueFeedSection({
   reviews,
+  isLoading = false,
   mode = 'profile',
   isOwnProfile = true,
   showTabs = true,
@@ -114,7 +117,9 @@ export default function CritiqueFeedSection({
       )}
 
       {/* Strictly Single-Column Vertical Feed (No Grid!) */}
-      {filteredReviews.length === 0 ? (
+      {isLoading ? (
+        <CritiqueFeedSkeleton count={3} />
+      ) : filteredReviews.length === 0 ? (
         <div className="p-12 text-center flex flex-col items-center justify-center">
           <div className="size-14 rounded-2xl bg-desk border border-black/10 flex items-center justify-center mb-4 shadow-2xs">
             <Inbox className="size-6 text-amber-600" />
