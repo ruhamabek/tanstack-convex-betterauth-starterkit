@@ -116,9 +116,18 @@ export const listComments = query({
             .withIndex('by_handle', (q: any) => q.eq('handle', c.authorHandle))
             .first()
         }
+
+        let authorAvatarUrl = profile?.avatarUrl || null
+        if (profile?.avatarStorageId) {
+          authorAvatarUrl = (await ctx.storage.getUrl(profile.avatarStorageId)) || authorAvatarUrl
+        }
+
         return {
           ...c,
-          authorAvatarUrl: profile?.avatarUrl || null,
+          authorAvatarUrl,
+          authorDisplayName: profile?.displayName || c.authorDisplayName,
+          authorRole: profile?.role || c.authorRole,
+          authorBadge: profile?.badge || c.authorBadge,
         }
       }),
     )
@@ -131,6 +140,8 @@ export const addComment = mutation({
   args: {
     reviewId: v.id('reviews'),
     content: v.string(),
+    parentCommentId: v.optional(v.id('reviewComments')),
+    replyToHandle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx)
@@ -151,6 +162,14 @@ export const addComment = mutation({
       throw new Error('Comment must be between 1 and 500 characters.')
     }
 
+    let parentComment = null
+    if (args.parentCommentId) {
+      parentComment = await ctx.db.get(args.parentCommentId)
+      if (!parentComment || parentComment.reviewId !== args.reviewId) {
+        throw new Error('Parent comment not found in this discussion.')
+      }
+    }
+
     const commentId = await ctx.db.insert('reviewComments', {
       reviewId: args.reviewId,
       userId,
@@ -159,27 +178,56 @@ export const addComment = mutation({
       authorRole: profile.role,
       authorBadge: profile.badge,
       content: cleanContent,
+      parentCommentId: args.parentCommentId,
+      replyToHandle: parentComment ? parentComment.authorHandle : args.replyToHandle,
       createdAt: Date.now(),
     })
 
-    // Send comment notification to review author
     const review = await ctx.db.get(args.reviewId)
-    if (review && review.userId !== userId) {
-      const app = await ctx.db.get(review.appId)
+    const app = review ? await ctx.db.get(review.appId) : null
+    const now = Date.now()
+
+    // 1. If replying to another comment, notify the parent comment's author
+    if (parentComment && parentComment.userId !== userId) {
+      await ctx.db.insert('notifications', {
+        userId: parentComment.userId,
+        actorUserId: userId,
+        actorHandle: profile.handle,
+        actorDisplayName: profile.displayName,
+        actorAvatarUrl: profile.avatarUrl,
+        type: 'reply',
+        reviewId: args.reviewId,
+        commentId,
+        targetHandle: parentComment.authorHandle,
+        appName: app?.name,
+        appIconUrl: app?.iconUrl,
+        previewText: cleanContent.slice(0, 140),
+        read: false,
+        createdAt: now,
+      })
+    }
+
+    // 2. Notify review author if they are not the replier and not the parent comment author
+    if (
+      review &&
+      review.userId !== userId &&
+      (!parentComment || parentComment.userId !== review.userId)
+    ) {
       await ctx.db.insert('notifications', {
         userId: review.userId,
         actorUserId: userId,
         actorHandle: profile.handle,
         actorDisplayName: profile.displayName,
         actorAvatarUrl: profile.avatarUrl,
-        type: 'comment',
+        type: args.parentCommentId ? 'reply' : 'comment',
         reviewId: args.reviewId,
         commentId,
+        targetHandle: review.authorHandle,
         appName: app?.name,
         appIconUrl: app?.iconUrl,
         previewText: cleanContent.slice(0, 140),
         read: false,
-        createdAt: Date.now(),
+        createdAt: now,
       })
     }
 

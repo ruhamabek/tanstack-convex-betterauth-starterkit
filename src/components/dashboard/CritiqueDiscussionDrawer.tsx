@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, MessageSquare, LoaderCircle, Sparkles } from 'lucide-react'
+import { X, Send, MessageSquare, LoaderCircle, Sparkles, Reply, CornerDownRight } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useConvexMutation } from '@convex-dev/react-query'
 import { useQuery as useConvexReactQuery } from 'convex/react'
@@ -13,6 +13,28 @@ export interface CritiqueDiscussionDrawerProps {
   onClose: () => void
   review: (Doc<'reviews'> & { app?: Doc<'apps'> | null; authorAvatarUrl?: string | null }) | null
   currentProfile?: Doc<'profiles'> | null
+}
+
+export interface ThreadedComment {
+  _id: Id<'reviewComments'>
+  reviewId: Id<'reviews'>
+  userId: string
+  authorHandle: string
+  authorDisplayName: string
+  authorRole: string
+  authorBadge?: string
+  authorAvatarUrl?: string | null
+  content: string
+  parentCommentId?: Id<'reviewComments'>
+  replyToHandle?: string
+  createdAt: number
+  replies: ThreadedComment[]
+}
+
+export interface ReplyingTarget {
+  commentId: Id<'reviewComments'>
+  authorHandle: string
+  previewText: string
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -31,6 +53,29 @@ function formatRelativeTime(timestamp: number): string {
   })
 }
 
+function buildCommentTree(rawComments: any[]): ThreadedComment[] {
+  const map = new Map<string, ThreadedComment>()
+  const roots: ThreadedComment[] = []
+
+  for (const c of rawComments) {
+    map.set(c._id, {
+      ...c,
+      replies: [],
+    })
+  }
+
+  for (const c of rawComments) {
+    const node = map.get(c._id)!
+    if (c.parentCommentId && map.has(c.parentCommentId)) {
+      map.get(c.parentCommentId)!.replies.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}
+
 export default function CritiqueDiscussionDrawer({
   isOpen,
   onClose,
@@ -38,16 +83,18 @@ export default function CritiqueDiscussionDrawer({
   currentProfile,
 }: CritiqueDiscussionDrawerProps) {
   const [content, setContent] = useState('')
+  const [replyingTo, setReplyingTo] = useState<ReplyingTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const addCommentConvex = useConvexMutation(api.social.addComment)
   const addCommentMutation = useMutation({
     mutationFn: addCommentConvex,
     onSuccess: () => {
       setContent('')
+      setReplyingTo(null)
       setError(null)
-      // Scroll to bottom
       setTimeout(() => {
         commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }, 100)
@@ -68,6 +115,14 @@ export default function CritiqueDiscussionDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
+  const handleStartReply = (target: ReplyingTarget) => {
+    setReplyingTo(target)
+    setError(null)
+    setTimeout(() => {
+      textareaRef.current?.focus()
+    }, 50)
+  }
+
   if (!isOpen || !review) return null
 
   const handlePostComment = async (e: React.FormEvent) => {
@@ -83,6 +138,8 @@ export default function CritiqueDiscussionDrawer({
     await addCommentMutation.mutateAsync({
       reviewId: review._id,
       content: content.trim(),
+      parentCommentId: replyingTo?.commentId,
+      replyToHandle: replyingTo?.authorHandle,
     })
   }
 
@@ -119,7 +176,7 @@ export default function CritiqueDiscussionDrawer({
                     Critique Discussion
                   </h3>
                   <p className="text-[11px] text-neutral-400 font-medium">
-                    Debating craft &amp; utility with fellow critics
+                    Threaded debates on craft, utility, and interface feel
                   </p>
                 </div>
               </div>
@@ -173,8 +230,11 @@ export default function CritiqueDiscussionDrawer({
 
             {/* Comments Thread (Scrollable) */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scrollbar-none">
-              {/* Discussion Drawer Body with Live Comments Component */}
-              <RealtimeComments reviewId={review._id} />
+              <RealtimeComments
+                reviewId={review._id}
+                onReply={handleStartReply}
+                currentProfile={currentProfile}
+              />
               <div ref={commentsEndRef} />
             </div>
 
@@ -193,13 +253,39 @@ export default function CritiqueDiscussionDrawer({
                 </div>
               )}
 
+              {/* Replying To Banner */}
+              {replyingTo && (
+                <div className="flex items-center justify-between px-3 py-1.5 mb-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-900 text-xs animate-in fade-in slide-in-from-bottom-1 duration-150">
+                  <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                    <Reply className="size-3.5 text-sky-700 shrink-0" />
+                    <span className="font-bold shrink-0">
+                      Replying to @{replyingTo.authorHandle}:
+                    </span>
+                    <span className="text-neutral-500 truncate italic text-[11px]">
+                      &ldquo;{replyingTo.previewText}&rdquo;
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyingTo(null)}
+                    className="size-5 rounded-full hover:bg-black/10 flex items-center justify-center text-neutral-500 hover:text-foreground transition cursor-pointer shrink-0"
+                    title="Cancel reply"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              )}
+
               <form onSubmit={handlePostComment} className="relative">
                 <textarea
+                  ref={textareaRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder={
-                    currentProfile
-                      ? `Reply as @${currentProfile.handle}...`
+                    replyingTo
+                      ? `Write a reply to @${replyingTo.authorHandle}...`
+                      : currentProfile
+                      ? `Comment as @${currentProfile.handle}...`
                       : 'Sign in & claim pseudonym to comment...'
                   }
                   disabled={!currentProfile || addCommentMutation.isPending}
@@ -228,7 +314,7 @@ export default function CritiqueDiscussionDrawer({
                     ) : (
                       <Send className="size-3.5" />
                     )}
-                    <span>Comment</span>
+                    <span>{replyingTo ? 'Send Reply' : 'Comment'}</span>
                   </button>
                 </div>
               </form>
@@ -240,7 +326,15 @@ export default function CritiqueDiscussionDrawer({
   )
 }
 
-function RealtimeComments({ reviewId }: { reviewId: Id<'reviews'> }) {
+function RealtimeComments({
+  reviewId,
+  onReply,
+  currentProfile,
+}: {
+  reviewId: Id<'reviews'>
+  onReply: (target: ReplyingTarget) => void
+  currentProfile?: Doc<'profiles'> | null
+}) {
   const comments = useConvexReactQuery(api.social.listComments, { reviewId })
 
   if (comments === undefined) {
@@ -268,49 +362,124 @@ function RealtimeComments({ reviewId }: { reviewId: Id<'reviews'> }) {
     )
   }
 
-  return (
-    <div className="space-y-3.5">
-      {comments.map((comment) => (
-        <div
-          key={comment._id}
-          className="p-3.5 rounded-2xl bg-white border border-black/8 shadow-2xs"
-        >
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-2">
-              <CriticAvatar
-                avatarUrl={(comment as any).authorAvatarUrl}
-                seed={comment.authorHandle}
-                size="sm"
-                rounded="squircle"
-                className="border border-black/5"
-              />
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-foreground">
-                    @{comment.authorHandle}
-                  </span>
-                  {comment.authorBadge === 'Founding Critic' && (
-                    <span className="text-[9px] font-mono font-bold text-amber-900 bg-amber-500/15 px-1.5 py-0.2 rounded">
-                      FOUNDING
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-neutral-400 font-medium">
-                  {comment.authorRole}
-                </span>
-              </div>
-            </div>
+  const threadRoots = buildCommentTree(comments)
 
-            <span className="text-[10px] font-mono text-neutral-400">
-              {formatRelativeTime(comment.createdAt)}
-            </span>
+  return (
+    <div className="space-y-4">
+      {threadRoots.map((rootComment) => (
+        <CommentThreadItem
+          key={rootComment._id}
+          comment={rootComment}
+          depth={0}
+          onReply={onReply}
+          currentProfile={currentProfile}
+        />
+      ))}
+    </div>
+  )
+}
+
+function CommentThreadItem({
+  comment,
+  depth,
+  onReply,
+  currentProfile,
+}: {
+  comment: ThreadedComment
+  depth: number
+  onReply: (target: ReplyingTarget) => void
+  currentProfile?: Doc<'profiles'> | null
+}) {
+  const isReply = depth > 0
+
+  return (
+    <div className="space-y-2 select-text">
+      {/* Individual Comment Card */}
+      <div
+        className={`p-3 sm:p-3.5 rounded-2xl bg-white border border-black/8 shadow-2xs transition group/card ${
+          isReply ? 'bg-[#FCFBF8]' : ''
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-2">
+            <CriticAvatar
+              avatarUrl={comment.authorAvatarUrl}
+              seed={comment.authorHandle}
+              size={isReply ? 'xs' : 'sm'}
+              rounded="squircle"
+              className="border border-black/5 shrink-0"
+            />
+            <div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold text-foreground">
+                  @{comment.authorHandle}
+                </span>
+                {comment.authorBadge === 'Founding Critic' && (
+                  <span className="text-[9px] font-mono font-bold text-amber-900 bg-amber-500/15 px-1.5 py-0.2 rounded">
+                    FOUNDING
+                  </span>
+                )}
+                {comment.replyToHandle && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-sky-800 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20">
+                    <CornerDownRight className="size-2.5 text-sky-600" />
+                    @{comment.replyToHandle}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-neutral-400 font-medium">
+                {comment.authorRole}
+              </span>
+            </div>
           </div>
 
-          <p className="text-xs text-neutral-800 leading-relaxed pl-8 font-normal">
-            {comment.content}
-          </p>
+          <span className="text-[10px] font-mono text-neutral-400 shrink-0">
+            {formatRelativeTime(comment.createdAt)}
+          </span>
         </div>
-      ))}
+
+        <p className="text-xs text-neutral-800 leading-relaxed font-normal break-words whitespace-pre-wrap pl-7 sm:pl-8">
+          {comment.content}
+        </p>
+
+        {/* Action Bar (Reply button) */}
+        {currentProfile && (
+          <div className="pl-7 sm:pl-8 pt-1 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() =>
+                onReply({
+                  commentId: comment._id,
+                  authorHandle: comment.authorHandle,
+                  previewText: comment.content,
+                })
+              }
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-400 hover:text-foreground transition cursor-pointer hover:bg-black/5 px-2 py-0.5 rounded-full"
+            >
+              <Reply className="size-3 text-neutral-400" />
+              <span>Reply</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Nested Replies with Left Thread Line */}
+      {comment.replies.length > 0 && (
+        <div
+          className={`border-l-2 border-black/10 space-y-2.5 mt-2.5 ${
+            depth < 2 ? 'ml-3 sm:ml-4 pl-3 sm:pl-4' : 'ml-2 pl-2.5'
+          }`}
+        >
+          {comment.replies.map((reply) => (
+            <CommentThreadItem
+              key={reply._id}
+              comment={reply}
+              depth={depth + 1}
+              onReply={onReply}
+              currentProfile={currentProfile}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

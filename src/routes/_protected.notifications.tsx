@@ -11,6 +11,7 @@ import {
   UserPlus,
   ArrowRight,
   Inbox,
+  Reply,
 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -123,6 +124,9 @@ function NotificationsPage() {
 
   const filteredNotifications = useMemo(() => {
     if (activeTab === 'all') return notifications
+    if (activeTab === 'comment') {
+      return notifications.filter((n) => n.type === 'comment' || n.type === 'reply')
+    }
     return notifications.filter((n) => n.type === activeTab)
   }, [notifications, activeTab])
 
@@ -166,6 +170,8 @@ function NotificationsPage() {
         return <Repeat2 className="size-4 text-indigo-600" />
       case 'comment':
         return <MessageSquare className="size-4 text-sky-600" />
+      case 'reply':
+        return <Reply className="size-4 text-sky-600" />
       case 'follow':
         return <UserPlus className="size-4 text-emerald-600" />
       default:
@@ -199,6 +205,13 @@ function NotificationsPage() {
         return (
           <span>
             commented on your evaluation of{' '}
+            <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong>
+          </span>
+        )
+      case 'reply':
+        return (
+          <span>
+            replied to your comment on{' '}
             <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong>
           </span>
         )

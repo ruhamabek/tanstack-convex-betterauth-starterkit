@@ -117,10 +117,13 @@ export default defineSchema({
     authorRole: v.string(),
     authorBadge: v.optional(v.string()),
     content: v.string(),
+    parentCommentId: v.optional(v.id('reviewComments')),
+    replyToHandle: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_review', ['reviewId'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    .index('by_parent', ['parentCommentId']),
 
   // Critic Social Graph / Following System
   follows: defineTable({
@@ -139,7 +142,7 @@ export default defineSchema({
     actorHandle: v.string(), // @handle of actor
     actorDisplayName: v.string(), // Display name of actor
     actorAvatarUrl: v.optional(v.string()), // Avatar URL
-    type: v.string(), // "follow" | "endorse" | "comment" | "quote"
+    type: v.string(), // "follow" | "endorse" | "comment" | "quote" | "reply"
     reviewId: v.optional(v.id('reviews')), // Related review if endorse, comment, or quote
     commentId: v.optional(v.id('reviewComments')), // Related comment if comment
     targetHandle: v.optional(v.string()), // Target handle
