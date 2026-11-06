@@ -75,10 +75,8 @@ const DEFAULT_TOP_CRITICS = [
 ]
 
 export default function DashboardRightRail({
-  onSearchChange,
   onSelectTag,
 }: DashboardRightRailProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [pendingHandles, setPendingHandles] = useState<Record<string, boolean>>({})
 
   // Real Convex queries & mutations
@@ -108,19 +106,22 @@ export default function DashboardRightRail({
     <div className="w-full space-y-5 select-none">
       {/* Top Search Bar */}
       <div className="pb-1">
-        <div className="relative flex items-center">
-          <Search className="absolute left-4 size-4.5 text-neutral-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              onSearchChange?.(e.target.value)
-            }}
-            placeholder="Search apps or critiques..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-black/10 text-sm font-medium text-foreground placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-foreground/15 transition shadow-2xs"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('screenlog:open-search'))
+          }}
+          className="w-full relative flex items-center text-left cursor-pointer group"
+          title="Search apps, specimens, critics, and critiques (⌘K)"
+        >
+          <Search className="absolute left-4 size-4.5 text-neutral-400 group-hover:text-foreground transition pointer-events-none" />
+          <div className="w-full pl-11 pr-14 py-3 rounded-2xl bg-white border border-black/10 text-sm font-medium text-neutral-400 group-hover:border-black/25 group-hover:text-neutral-600 transition shadow-2xs truncate">
+            Search apps or critiques...
+          </div>
+          <kbd className="absolute right-3.5 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-black/5 border border-black/10 text-[10px] font-mono font-bold text-neutral-500 group-hover:bg-black/10 transition pointer-events-none">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Trending Software Under Review Widget */}

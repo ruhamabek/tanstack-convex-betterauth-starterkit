@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 import type * as profiles from "../profiles.js";
 import type * as reviews from "../reviews.js";
+import type * as search from "../search.js";
 import type * as social from "../social.js";
 import type * as storage from "../storage.js";
 import type * as todos from "../todos.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   profiles: typeof profiles;
   reviews: typeof reviews;
+  search: typeof search;
   social: typeof social;
   storage: typeof storage;
   todos: typeof todos;

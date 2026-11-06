@@ -62,6 +62,9 @@ export default function CriticAvatar({
   const roundedClass = ROUNDED_CLASSES[rounded]
 
   if (hasStory) {
+    const ringPadding = size === '2xl' || size === 'xl' ? 'p-1 sm:p-1.5' : 'p-[2.5px]'
+    const gapPadding = size === '2xl' || size === 'xl' ? 'p-[3px] sm:p-1' : 'p-0.5'
+
     return (
       <button
         type="button"
@@ -71,11 +74,11 @@ export default function CriticAvatar({
           onStoryClick?.(e)
         }}
         title="Watch Critic Showreel"
-        className={`relative inline-flex items-center justify-center p-[2.5px] rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 hover:scale-105 active:scale-95 transition cursor-pointer shadow-xs group ${className}`}
+        className={`relative inline-flex items-center justify-center ${ringPadding} rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer shadow-md group ${sizeClass} ${className}`}
       >
-        <div className="bg-canvas p-0.5 rounded-full size-full flex items-center justify-center">
+        <div className={`bg-canvas ${gapPadding} rounded-full size-full flex items-center justify-center`}>
           <div
-            className={`relative inline-flex items-center justify-center shrink-0 bg-desk overflow-hidden select-none ${sizeClass} rounded-full`}
+            className="relative inline-flex items-center justify-center shrink-0 bg-desk overflow-hidden select-none size-full rounded-full"
           >
             <img
               src={currentSrc}

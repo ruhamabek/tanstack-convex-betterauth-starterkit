@@ -6,6 +6,7 @@ import { AppSidebar } from '../components/app-sidebar'
 import { SiteHeader } from '../components/site-header'
 import { SidebarInset, SidebarProvider } from '../components/ui/sidebar'
 import CriticShowreelModal from '../components/dashboard/CriticShowreelModal'
+import GlobalSearchModal from '../components/search/GlobalSearchModal'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: ({ context }) => {
@@ -38,13 +39,38 @@ function ProtectedLayout() {
   )
 
   const [isStoryOpen, setIsStoryOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchInitialQuery, setSearchInitialQuery] = useState('')
+
   useEffect(() => {
     const handleOpenStory = () => setIsStoryOpen(true)
+    const handleOpenSearch = (e: Event) => {
+      const customEvent = e as CustomEvent<{ query?: string }>
+      if (customEvent.detail?.query) {
+        setSearchInitialQuery(customEvent.detail.query)
+      } else {
+        setSearchInitialQuery('')
+      }
+      setIsSearchOpen(true)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setIsSearchOpen((prev) => !prev)
+      }
+    }
+
     window.addEventListener('screenlog:open-showreel', handleOpenStory)
     window.addEventListener('screenlog:open-drop-story', handleOpenStory)
+    window.addEventListener('screenlog:open-search', handleOpenSearch)
+    window.addEventListener('keydown', handleKeyDown)
+
     return () => {
       window.removeEventListener('screenlog:open-showreel', handleOpenStory)
       window.removeEventListener('screenlog:open-drop-story', handleOpenStory)
+      window.removeEventListener('screenlog:open-search', handleOpenSearch)
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
 
@@ -79,6 +105,16 @@ function ProtectedLayout() {
           profile={profile ?? null}
         />
       )}
+
+      {/* High-Efficiency Global Search (⌘K / Ctrl+K & Search Bar) */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => {
+          setIsSearchOpen(false)
+          setSearchInitialQuery('')
+        }}
+        initialQuery={searchInitialQuery}
+      />
     </SidebarProvider>
   )
 }

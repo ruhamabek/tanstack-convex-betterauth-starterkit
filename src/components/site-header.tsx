@@ -1,4 +1,4 @@
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus, Sparkles, Search } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 import { SidebarTrigger } from './ui/sidebar'
  
@@ -26,6 +26,10 @@ export function SiteHeader() {
     window.dispatchEvent(new CustomEvent('screenlog:open-specimen'))
   }
 
+  const triggerOpenSearch = () => {
+    window.dispatchEvent(new CustomEvent('screenlog:open-search'))
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-black/10 bg-desk/90 backdrop-blur-md px-4 select-none">
       {/* Left: Sidebar Toggle + Breadcrumb Title */}
@@ -39,6 +43,15 @@ export function SiteHeader() {
 
       {/* Right: Quick Action CTAs */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={triggerOpenSearch}
+          className="inline-flex lg:hidden items-center gap-1.5 rounded-full bg-white hover:bg-neutral-100 border border-black/10 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:text-foreground transition active:scale-95 cursor-pointer shadow-2xs"
+          title="Global Search"
+        >
+          <Search className="size-3.5 text-neutral-500" />
+          <span>Search</span>
+        </button>
         <button
           type="button"
           onClick={() => {

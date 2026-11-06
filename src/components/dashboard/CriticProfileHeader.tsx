@@ -47,6 +47,13 @@ export default function CriticProfileHeader({
   const displayName = profile?.displayName ?? user?.name ?? 'Software Critic'
   const handle = profile?.handle ?? 'critic'
 
+  const handleStoryClick = (e?: React.MouseEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    window.dispatchEvent(new CustomEvent('screenlog:open-showreel'))
+    window.dispatchEvent(new CustomEvent('screenlog:open-drop-story'))
+  }
+
   return (
     <section className="relative w-full border-b border-black/10 bg-canvas select-none">
       {/* Editorial Cover Banner */}
@@ -98,23 +105,30 @@ export default function CriticProfileHeader({
       <div className="px-4 sm:px-6 pb-4">
         {/* Avatar & Action Buttons Row */}
         <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-4">
-          {/* Overlapping Profile Avatar */}
+          {/* Overlapping Profile Avatar with Showreel Story Ring */}
           <div className="relative group/avatar">
             <CriticAvatar
               avatarUrl={profile?.avatarUrl}
               seed={handle}
               size="2xl"
-              className="size-24 sm:size-32 rounded-full border-4 border-canvas bg-white shadow-md shrink-0"
+              hasStory={true}
+              onStoryClick={handleStoryClick}
+              className="size-24 sm:size-32 rounded-full shrink-0 shadow-lg"
             />
             {isOwnProfile && (
               <button
                 type="button"
-                onClick={onOpenEditProfileModal}
-                title="Upload or change profile picture"
-                className="absolute inset-1 rounded-full bg-black/55 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer backdrop-blur-xs gap-0.5 sm:gap-1"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onOpenEditProfileModal()
+                }}
+                title="Change profile picture"
+                className="absolute bottom-0 right-0 sm:bottom-0.5 sm:right-0.5 size-7 sm:size-8.5 rounded-full bg-canvas p-0.5 shadow-md flex items-center justify-center hover:scale-110 active:scale-95 transition cursor-pointer z-10"
               >
-                <Camera className="size-4 sm:size-6" />
-                <span className="text-[9px] sm:text-[11px] font-bold tracking-tight">Edit Photo</span>
+                <div className="size-full rounded-full bg-neutral-100 hover:bg-neutral-200 border border-black/10 flex items-center justify-center text-neutral-700 hover:text-foreground">
+                  <Camera className="size-3.5 sm:size-4" />
+                </div>
               </button>
             )}
           </div>
