@@ -99,13 +99,24 @@ export default function CriticProfileHeader({
         {/* Avatar & Action Buttons Row */}
         <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-4">
           {/* Overlapping Profile Avatar */}
-          <div className="relative">
+          <div className="relative group/avatar">
             <CriticAvatar
               avatarUrl={profile?.avatarUrl}
               seed={handle}
               size="2xl"
               className="size-24 sm:size-32 rounded-full border-4 border-canvas bg-white shadow-md shrink-0"
             />
+            {isOwnProfile && (
+              <button
+                type="button"
+                onClick={onOpenEditProfileModal}
+                title="Upload or change profile picture"
+                className="absolute inset-1 rounded-full bg-black/55 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer backdrop-blur-xs gap-0.5 sm:gap-1"
+              >
+                <Camera className="size-4 sm:size-6" />
+                <span className="text-[9px] sm:text-[11px] font-bold tracking-tight">Edit Photo</span>
+              </button>
+            )}
           </div>
 
           {/* Action Buttons Row */}

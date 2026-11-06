@@ -101,7 +101,7 @@ export default function CriticAvatar({
         alt={alt}
         onError={handleError}
         loading="lazy"
-        className="w-full h-full object-cover p-0.5"
+        className="w-full h-full object-cover"
       />
     </div>
   )

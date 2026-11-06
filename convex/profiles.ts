@@ -21,11 +21,16 @@ export const getMyProfile = query({
 
     if (!profile) return null
 
-    let bannerUrl = profile.bannerUrl
-    if (!bannerUrl && profile.bannerStorageId) {
-      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || undefined
+    let avatarUrl = profile.avatarUrl
+    if (profile.avatarStorageId) {
+      avatarUrl = (await ctx.storage.getUrl(profile.avatarStorageId)) || profile.avatarUrl
     }
-    return { ...profile, bannerUrl }
+
+    let bannerUrl = profile.bannerUrl
+    if (profile.bannerStorageId) {
+      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || profile.bannerUrl
+    }
+    return { ...profile, avatarUrl, bannerUrl }
   },
 })
 
@@ -94,11 +99,16 @@ export const getByHandle = query({
       return null
     }
 
-    let bannerUrl = profile.bannerUrl
-    if (!bannerUrl && profile.bannerStorageId) {
-      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || undefined
+    let avatarUrl = profile.avatarUrl
+    if (profile.avatarStorageId) {
+      avatarUrl = (await ctx.storage.getUrl(profile.avatarStorageId)) || profile.avatarUrl
     }
-    return { ...profile, bannerUrl }
+
+    let bannerUrl = profile.bannerUrl
+    if (profile.bannerStorageId) {
+      bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || profile.bannerUrl
+    }
+    return { ...profile, avatarUrl, bannerUrl }
   },
 })
 
@@ -141,8 +151,9 @@ export const saveProfile = mutation({
     role: v.string(),
     bio: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.union(v.id('_storage'), v.null())),
     bannerUrl: v.optional(v.string()),
-    bannerStorageId: v.optional(v.id('_storage')),
+    bannerStorageId: v.optional(v.union(v.id('_storage'), v.null())),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthUser(ctx)
@@ -180,12 +191,47 @@ export const saveProfile = mutation({
 
     const now = Date.now()
 
-    let finalBannerUrl = args.bannerUrl
-    if (args.bannerStorageId) {
-      const storageUrl = await ctx.storage.getUrl(args.bannerStorageId)
-      if (storageUrl) {
-        finalBannerUrl = storageUrl
+    let finalAvatarUrl = args.avatarUrl
+    let resolvedAvatarStorageId = existingProfile?.avatarStorageId
+
+    if (args.avatarStorageId !== undefined) {
+      if (args.avatarStorageId === null) {
+        resolvedAvatarStorageId = undefined
+      } else {
+        resolvedAvatarStorageId = args.avatarStorageId
+        const storageUrl = await ctx.storage.getUrl(args.avatarStorageId)
+        if (storageUrl) {
+          finalAvatarUrl = storageUrl
+        }
       }
+    } else if (args.avatarUrl !== undefined) {
+      // If user explicitly chose an illustrated avatar style, clear the storage reference
+      if (
+        args.avatarUrl.includes('api.dicebear.com') ||
+        args.avatarUrl.startsWith('data:image/svg+xml') ||
+        args.avatarUrl.startsWith('bauhaus:')
+      ) {
+        resolvedAvatarStorageId = undefined
+      }
+    }
+
+    let finalBannerUrl = args.bannerUrl
+    let resolvedBannerStorageId = existingProfile?.bannerStorageId
+
+    if (args.bannerStorageId !== undefined) {
+      if (args.bannerStorageId === null) {
+        resolvedBannerStorageId = undefined
+        finalBannerUrl = undefined
+      } else {
+        resolvedBannerStorageId = args.bannerStorageId
+        const storageUrl = await ctx.storage.getUrl(args.bannerStorageId)
+        if (storageUrl) {
+          finalBannerUrl = storageUrl
+        }
+      }
+    } else if (args.bannerUrl === '') {
+      resolvedBannerStorageId = undefined
+      finalBannerUrl = undefined
     }
 
     if (existingProfile) {
@@ -203,9 +249,10 @@ export const saveProfile = mutation({
         displayName,
         role,
         bio: args.bio?.trim() || undefined,
-        avatarUrl: args.avatarUrl || existingProfile.avatarUrl,
+        avatarUrl: finalAvatarUrl !== undefined ? (finalAvatarUrl || undefined) : existingProfile.avatarUrl,
+        avatarStorageId: resolvedAvatarStorageId,
         bannerUrl: finalBannerUrl !== undefined ? (finalBannerUrl || undefined) : existingProfile.bannerUrl,
-        bannerStorageId: args.bannerStorageId !== undefined ? args.bannerStorageId : (finalBannerUrl === '' ? undefined : existingProfile.bannerStorageId),
+        bannerStorageId: resolvedBannerStorageId,
         criticNumber,
         badge,
         updatedAt: now,
@@ -224,9 +271,10 @@ export const saveProfile = mutation({
       displayName,
       role,
       bio: args.bio?.trim() || undefined,
-      avatarUrl: args.avatarUrl || undefined,
+      avatarUrl: finalAvatarUrl || undefined,
+      avatarStorageId: resolvedAvatarStorageId || undefined,
       bannerUrl: finalBannerUrl || undefined,
-      bannerStorageId: args.bannerStorageId || undefined,
+      bannerStorageId: resolvedBannerStorageId || undefined,
       badge,
       criticNumber,
       reviewsCount: 0,

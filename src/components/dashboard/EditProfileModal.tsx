@@ -12,7 +12,7 @@ import { useAppForm } from '../form'
 export interface EditProfileModalProps {
   isOpen: boolean
   onClose: () => void
-  profile?: (Doc<'profiles'> & { bannerUrl?: string }) | null
+  profile?: (Doc<'profiles'> & { bannerUrl?: string; avatarStorageId?: Id<'_storage'> }) | null
   userEmail?: string
   defaultName?: string
   onSave: (args: {
@@ -21,8 +21,9 @@ export interface EditProfileModalProps {
     role: string
     bio?: string
     avatarUrl?: string
+    avatarStorageId?: Id<'_storage'> | null
     bannerUrl?: string
-    bannerStorageId?: Id<'_storage'>
+    bannerStorageId?: Id<'_storage'> | null
   }) => Promise<void>
 }
 
@@ -68,6 +69,8 @@ export default function EditProfileModal({
   const [pendingBannerFile, setPendingBannerFile] = useState<File | null>(null)
   const [isBannerRemoved, setIsBannerRemoved] = useState(false)
   const [isUploadingBanner, setIsUploadingBanner] = useState(false)
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   const generateUploadUrl = useConvexMutation(api.storage.generateUploadUrl)
 
@@ -124,7 +127,31 @@ export default function EditProfileModal({
       const cleanHandle = value.handle.trim().toLowerCase().replace(/^@/, '')
 
       try {
-        let uploadedStorageId: Id<'_storage'> | undefined = undefined
+        let uploadedAvatarStorageId: Id<'_storage'> | undefined | null = undefined
+
+        if (pendingAvatarFile) {
+          setIsUploadingAvatar(true)
+          const postUrl = await generateUploadUrl({})
+          const uploadRes = await fetch(postUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': pendingAvatarFile.type || 'image/jpeg' },
+            body: pendingAvatarFile,
+          })
+          if (!uploadRes.ok) {
+            throw new Error('Failed to upload profile picture.')
+          }
+          const json = await uploadRes.json()
+          uploadedAvatarStorageId = json.storageId
+        } else if (
+          profile?.avatarStorageId &&
+          (value.avatarUrl?.includes('api.dicebear.com') ||
+            value.avatarUrl?.startsWith('data:image/svg+xml') ||
+            value.avatarUrl?.startsWith('bauhaus:'))
+        ) {
+          uploadedAvatarStorageId = null
+        }
+
+        let uploadedBannerStorageId: Id<'_storage'> | undefined | null = undefined
 
         if (pendingBannerFile) {
           setIsUploadingBanner(true)
@@ -138,7 +165,9 @@ export default function EditProfileModal({
             throw new Error('Failed to upload background picture.')
           }
           const json = await uploadRes.json()
-          uploadedStorageId = json.storageId
+          uploadedBannerStorageId = json.storageId
+        } else if (isBannerRemoved) {
+          uploadedBannerStorageId = null
         }
 
         await onSave({
@@ -146,14 +175,16 @@ export default function EditProfileModal({
           displayName: value.displayName.trim() || 'Anonymous Critic',
           role: value.role.trim() || 'Product Crafter',
           bio: value.bio?.trim() || undefined,
-          avatarUrl: value.avatarUrl || undefined,
-          bannerStorageId: uploadedStorageId,
-          bannerUrl: isBannerRemoved ? '' : (uploadedStorageId ? undefined : profile?.bannerUrl),
+          avatarUrl: pendingAvatarFile ? undefined : (value.avatarUrl || undefined),
+          avatarStorageId: uploadedAvatarStorageId,
+          bannerStorageId: uploadedBannerStorageId,
+          bannerUrl: isBannerRemoved ? '' : (uploadedBannerStorageId ? undefined : profile?.bannerUrl),
         })
         onClose()
       } catch (err: any) {
         setSubmitError(err?.message || 'Failed to save critic identity.')
       } finally {
+        setIsUploadingAvatar(false)
         setIsUploadingBanner(false)
       }
     },
@@ -172,12 +203,13 @@ export default function EditProfileModal({
       setBannerPreview(profile?.bannerUrl || null)
       setPendingBannerFile(null)
       setIsBannerRemoved(false)
+      setPendingAvatarFile(null)
     }
   }, [isOpen, profile, defaultName])
 
   const formValues = useSelector(form.store, (s) => s.values)
   const isSaving = useSelector(form.store, (s) => s.isSubmitting)
-  const isBusy = isSaving || isUploadingBanner
+  const isBusy = isSaving || isUploadingBanner || isUploadingAvatar
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -284,6 +316,9 @@ export default function EditProfileModal({
                 value={field.state.value || ''}
                 baseSeed={formValues.handle || 'critic'}
                 onChange={(val) => field.handleChange(val)}
+                pendingFile={pendingAvatarFile}
+                onAvatarFileSelect={setPendingAvatarFile}
+                avatarStorageId={profile?.avatarStorageId}
               />
             )}
           />
@@ -379,7 +414,15 @@ export default function EditProfileModal({
               className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition hover:bg-neutral-800 disabled:opacity-50 cursor-pointer"
             >
               {isBusy && <LoaderCircle className="size-4 animate-spin" />}
-              <span>{isUploadingBanner ? 'Uploading Cover...' : 'Save Persona'}</span>
+              <span>
+                {isUploadingAvatar
+                  ? 'Uploading Photo...'
+                  : isUploadingBanner
+                  ? 'Uploading Cover...'
+                  : isSaving
+                  ? 'Saving Persona...'
+                  : 'Save Persona'}
+              </span>
             </button>
           </div>
         </form>
