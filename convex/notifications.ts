@@ -13,11 +13,35 @@ export const list = query({
     const currentUserId = String(user._id)
     const limit = args.limit || 50
 
-    const rawNotifications = await ctx.db
+    let rawNotifications = await ctx.db
       .query('notifications')
       .withIndex('by_user', (q) => q.eq('userId', currentUserId))
       .order('desc')
       .take(limit)
+
+    // Fallback for demo critic accounts before ensureMyProfile finishes linking
+    if (rawNotifications.length === 0) {
+      let targetHandle: string | undefined
+      if (user.email) {
+        const emailLower = user.email.toLowerCase()
+        const EMAIL_TO_HANDLE: Record<string, string> = {
+          'marcus@screenlog.dev': 'subgrid_sorcerer',
+          'elena@screenlog.dev': 'pixel_snob',
+          'alex@screenlog.dev': 'kerning_ghost',
+          'sarah@screenlog.dev': 'motion_curator',
+          'bananas@screenlog.dev': 'bananas',
+        }
+        targetHandle = EMAIL_TO_HANDLE[emailLower]
+      }
+
+      if (targetHandle) {
+        rawNotifications = await ctx.db
+          .query('notifications')
+          .filter((q) => q.eq(q.field('targetHandle'), targetHandle))
+          .order('desc')
+          .take(limit)
+      }
+    }
 
     // Enrich with latest actor profiles
     const enriched = await Promise.all(
@@ -34,8 +58,30 @@ export const list = query({
             .first()
         }
 
+        let appSlug: string | undefined = undefined
+        if (n.reviewId) {
+          const rev = await ctx.db.get(n.reviewId)
+          if (rev) {
+            const app = await ctx.db.get(rev.appId)
+            if (app) {
+              appSlug = app.slug
+            }
+          }
+        }
+
+        if (!appSlug && n.appName) {
+          const allApps = await ctx.db.query('apps').collect()
+          const matchedApp = allApps.find(
+            (a) => a.name.toLowerCase() === n.appName?.toLowerCase(),
+          )
+          if (matchedApp) {
+            appSlug = matchedApp.slug
+          }
+        }
+
         return {
           ...n,
+          appSlug,
           actorDisplayName: actorProfile?.displayName || n.actorDisplayName,
           actorHandle: actorProfile?.handle || n.actorHandle,
           actorAvatarUrl: actorProfile?.avatarUrl || n.actorAvatarUrl,
@@ -57,12 +103,35 @@ export const getUnreadCount = query({
 
     const currentUserId = String(user._id)
 
-    const unread = await ctx.db
+    let unread = await ctx.db
       .query('notifications')
       .withIndex('by_user_and_read', (q) =>
         q.eq('userId', currentUserId).eq('read', false),
       )
       .collect()
+
+    if (unread.length === 0 && user.email) {
+      const emailLower = user.email.toLowerCase()
+      const EMAIL_TO_HANDLE: Record<string, string> = {
+        'marcus@screenlog.dev': 'subgrid_sorcerer',
+        'elena@screenlog.dev': 'pixel_snob',
+        'alex@screenlog.dev': 'kerning_ghost',
+        'sarah@screenlog.dev': 'motion_curator',
+        'bananas@screenlog.dev': 'bananas',
+      }
+      const targetHandle = EMAIL_TO_HANDLE[emailLower]
+      if (targetHandle) {
+        unread = await ctx.db
+          .query('notifications')
+          .filter((q) =>
+            q.and(
+              q.eq(q.field('targetHandle'), targetHandle),
+              q.eq(q.field('read'), false),
+            ),
+          )
+          .collect()
+      }
+    }
 
     return unread.length
   },

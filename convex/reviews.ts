@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireAuthUser, getOptionalAuthUser } from './helpers'
+import { normalizeAppIcon } from './apps'
 import type { Id, Doc } from './_generated/dataModel'
 
 function computeVerdict(craft: number, utility: number): string {
@@ -28,7 +29,10 @@ function computeAppStatus(craft: number, utility: number): string {
 
 // Helper to enrich a review with storage URLs, app info, social reaction metrics, and parent quote review
 async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: string | null) {
-  const app = await ctx.db.get(review.appId)
+  let app = await ctx.db.get(review.appId)
+  if (app) {
+    app = normalizeAppIcon(app)
+  }
   let mediaUrl = review.mediaUrl
   if (!mediaUrl && review.mediaStorageId) {
     mediaUrl = (await ctx.storage.getUrl(review.mediaStorageId)) || undefined
@@ -75,7 +79,10 @@ async function enrichReview(ctx: any, review: Doc<'reviews'>, currentUserId: str
   if (review.parentReviewId) {
     const parent = await ctx.db.get(review.parentReviewId)
     if (parent) {
-      const parentApp = await ctx.db.get(parent.appId)
+      let parentApp = await ctx.db.get(parent.appId)
+      if (parentApp) {
+        parentApp = normalizeAppIcon(parentApp)
+      }
       let parentProfile = await ctx.db
         .query('profiles')
         .withIndex('by_user', (q: any) => q.eq('userId', parent.userId))
@@ -189,6 +196,21 @@ export const listByApp = query({
   },
 })
 
+export const getReviewById = query({
+  args: {
+    reviewId: v.id('reviews'),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOptionalAuthUser(ctx)
+    const currentUserId = user ? String(user._id) : null
+
+    const review = await ctx.db.get(args.reviewId)
+    if (!review) return null
+
+    return await enrichReview(ctx, review, currentUserId)
+  },
+})
+
 export const listByUser = query({
   args: {
     userId: v.optional(v.string()),
@@ -217,10 +239,47 @@ export const listByUser = query({
       targetUserId = String(user._id)
     }
 
-    const reviews = await ctx.db
+    let reviews = await ctx.db
       .query('reviews')
       .withIndex('by_user', (q) => q.eq('userId', targetUserId!))
       .collect()
+
+    // Resilient fallback for demo accounts before profile linking completes
+    if (reviews.length === 0) {
+      let handle = args.handle
+      if (!handle) {
+        let profile = await ctx.db
+          .query('profiles')
+          .withIndex('by_user', (q) => q.eq('userId', targetUserId!))
+          .first()
+        if (!profile && user?.email) {
+          const emailLower = user.email.toLowerCase()
+          const EMAIL_TO_HANDLE: Record<string, string> = {
+            'marcus@screenlog.dev': 'subgrid_sorcerer',
+            'elena@screenlog.dev': 'pixel_snob',
+            'alex@screenlog.dev': 'kerning_ghost',
+            'sarah@screenlog.dev': 'motion_curator',
+            'bananas@screenlog.dev': 'bananas',
+          }
+          const targetHandle = EMAIL_TO_HANDLE[emailLower] || emailLower.split('@')[0]
+          profile = await ctx.db
+            .query('profiles')
+            .withIndex('by_handle', (q) => q.eq('handle', targetHandle))
+            .first()
+        }
+        if (profile) {
+          handle = profile.handle
+        }
+      }
+
+      if (handle) {
+        const cleanHandle = handle.trim().toLowerCase().replace(/^@/, '')
+        reviews = await ctx.db
+          .query('reviews')
+          .filter((q) => q.eq(q.field('authorHandle'), cleanHandle))
+          .collect()
+      }
+    }
 
     // Enrich with app details, storage URLs, and social counters
     const enriched = await Promise.all(

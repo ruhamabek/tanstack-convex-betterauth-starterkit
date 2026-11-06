@@ -2,23 +2,32 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
-  Volume2,
-  VolumeX,
   Download,
   Share2,
   Trophy,
   ArrowRight,
+  Check,
+  Loader2,
 } from 'lucide-react'
+import { useQuery } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
+import { resolveAppIcon } from '../../lib/appIcons'
+import {
+  downloadAllStories,
+  shareAllStories,
+  type ShowreelExportData,
+} from '../../lib/showreelExport'
 
 export interface CriticShowreelModalProps {
   isOpen: boolean
   onClose: () => void
-  profile: {
+  profile?: {
     handle: string
     displayName: string
     avatarUrl?: string | null
     criticNumber?: number
     role?: string
+    badge?: string
   } | null
   issueNumber?: number
   items?: Array<{
@@ -40,7 +49,39 @@ export default function CriticShowreelModal({
   onClose,
   profile,
   issueNumber = 4,
-  items = [
+  items,
+}: CriticShowreelModalProps) {
+  // Query accurate live showreel data for this critic
+  const showreelData = useQuery(
+    api.showreel.getCriticShowreelData,
+    isOpen ? { handle: profile?.handle } : 'skip',
+  )
+
+  const activeProfile = showreelData?.profile || profile || {
+    handle: 'critic',
+    displayName: 'Founding Critic',
+    role: 'Software Critic',
+    badge: 'Founding Critic',
+    criticNumber: 1,
+    avatarUrl: null,
+  }
+
+  const issueNum = showreelData?.issueNumber || issueNumber || 4
+
+  const champion = showreelData?.champion || {
+    name: 'Raycast',
+    slug: 'raycast',
+    category: 'Productivity & Launcher',
+    craftScore: 98,
+    utilityScore: 94,
+    status: 'Certified LGTM',
+    iconUrl: '/assets/raycast_favicon.png',
+    headline: 'The Gold Standard of Keyboard-First Native Desktop Software',
+    quote: 'Raycast completely replaced Spotlight on day one. Hotkey response times are consistently under 16ms.',
+    verdict: 'lgtm',
+  }
+
+  const activeItems = showreelData?.topSpecimens || items || [
     {
       name: 'Raycast',
       slug: 'raycast',
@@ -48,7 +89,7 @@ export default function CriticShowreelModal({
       utilityScore: 94,
       status: 'Certified LGTM',
       category: 'Productivity & Launcher',
-      iconUrl: '/assets/raycast_icon.svg',
+      iconUrl: '/assets/raycast_favicon.png',
     },
     {
       name: 'Linear',
@@ -66,14 +107,59 @@ export default function CriticShowreelModal({
       utilityScore: 48,
       status: 'Needs Polish',
       category: 'Web Browser',
-      iconUrl: '/assets/arc_icon.svg',
+      iconUrl: '/assets/arc_favicon.png',
     },
-  ],
-}: CriticShowreelModalProps) {
+  ]
+
+  const archetype = showreelData?.archetype || {
+    title: 'The Subgrid Purist',
+    narrative:
+      'You evaluated desktop specimens with microscopic motion sensitivity, strict 8pt spatial discipline, and zero ergonomic tolerance.',
+    mascotUrl: '/assets/subgrid_purist_3d.jpg',
+    sliders: [
+      { label: 'Micro-motion sensitivity', score: 94 },
+      { label: 'Subgrid layout discipline', score: 98 },
+      { label: 'Ergonomic tolerance', score: 48 },
+    ],
+  }
+
+  const allSpecimensCount = showreelData?.allSpecimensCount || activeItems.length
+
+  const exportData: ShowreelExportData = {
+    handle: activeProfile.handle,
+    displayName: activeProfile.displayName,
+    role: activeProfile.role,
+    issueNumber: issueNum,
+    allSpecimensCount,
+    champion: {
+      name: champion.name,
+      craftScore: champion.craftScore,
+      utilityScore: champion.utilityScore,
+      category: champion.category,
+      headline: champion.headline,
+      quote: champion.quote,
+      status: champion.status,
+    },
+    topSpecimens: activeItems.map((item) => ({
+      name: item.name,
+      craftScore: item.craftScore,
+      utilityScore: item.utilityScore,
+      category: item.category || 'Product',
+      status: item.status,
+    })),
+    archetype: {
+      title: archetype.title,
+      narrative: archetype.narrative,
+      sliders: archetype.sliders,
+    },
+  }
+
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [isSharing, setIsSharing] = useState(false)
+  const [downloadComplete, setDownloadComplete] = useState(false)
   const [slideProgress, setSlideProgress] = useState(0)
 
   // Reset when opened
@@ -82,6 +168,7 @@ export default function CriticShowreelModal({
       setCurrentSlide(0)
       setSlideProgress(0)
       setIsPaused(false)
+      setDownloadComplete(false)
     }
   }, [isOpen])
 
@@ -101,9 +188,9 @@ export default function CriticShowreelModal({
     setSlideProgress(0)
   }, [])
 
-  // Slide timer tick: strictly pure state updater
+  // Slide timer tick
   useEffect(() => {
-    if (!isOpen || isPaused) return
+    if (!isOpen || isPaused || isDownloading || isSharing) return
 
     const tickMs = 50
     const step = (tickMs / SLIDE_DURATION_MS) * 100
@@ -113,9 +200,9 @@ export default function CriticShowreelModal({
     }, tickMs)
 
     return () => clearInterval(timer)
-  }, [isOpen, isPaused, currentSlide])
+  }, [isOpen, isPaused, isDownloading, isSharing, currentSlide])
 
-  // Advance slide cleanly when progress completes
+  // Advance slide when progress completes
   useEffect(() => {
     if (slideProgress >= 100) {
       goToNextSlide()
@@ -143,95 +230,30 @@ export default function CriticShowreelModal({
   const handlePointerDown = () => setIsPaused(true)
   const handlePointerUp = () => setIsPaused(false)
 
-  // High-Res Story PNG Export (1080x1920)
-  const handleDownloadStory = async () => {
+  // High-Res Story PNG Export for ALL 5 SLIDES (1080x1920)
+  const handleDownloadAll = async () => {
     setIsDownloading(true)
+    setDownloadProgress(1)
     try {
-      const canvas = document.createElement('canvas')
-      canvas.width = 1080
-      canvas.height = 1920
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      // Background
-      ctx.fillStyle = '#000000'
-      ctx.fillRect(0, 0, 1080, 1920)
-
-      // Iridescent squircle portal
-      const grad = ctx.createLinearGradient(140, 280, 940, 1550)
-      grad.addColorStop(0, '#84cc16')
-      grad.addColorStop(0.35, '#f59e0b')
-      grad.addColorStop(0.7, '#ec4899')
-      grad.addColorStop(1, '#8b5cf6')
-
-      ctx.lineWidth = 10
-      ctx.strokeStyle = grad
-      ctx.beginPath()
-      ctx.roundRect(140, 280, 800, 1260, 70)
-      ctx.stroke()
-
-      // Inner Dark Fill
-      ctx.fillStyle = '#09090c'
-      ctx.beginPath()
-      ctx.roundRect(145, 285, 790, 1250, 65)
-      ctx.fill()
-
-      // Header Tag inside squircle
-      ctx.textAlign = 'center'
-      ctx.fillStyle = '#9ca3af'
-      ctx.font = '500 36px "Geist Sans", sans-serif'
-      ctx.fillText(`Showreel #${String(issueNumber).padStart(2, '0')} · 2026`, 540, 440)
-
-      // Title
-      ctx.fillStyle = '#ffffff'
-      ctx.font = '800 76px "Geist Sans", sans-serif'
-      ctx.fillText('The Subgrid Purist', 540, 560)
-
-      // Narrative text
-      ctx.fillStyle = '#d1d5db'
-      ctx.font = '400 34px "Geist Sans", sans-serif'
-      ctx.fillText('You evaluated 3 desktop specimens with', 540, 680)
-      ctx.fillText('microscopic motion sensitivity, strict 8pt', 540, 730)
-      ctx.fillText('grid discipline, and zero ergonomic tolerance.', 540, 780)
-
-      // Top specimens subhead
-      ctx.fillStyle = '#ffffff'
-      ctx.font = '700 40px "Geist Sans", sans-serif'
-      ctx.fillText('Top specimens approved', 540, 930)
-
-      // Specimen list
-      items.forEach((item, idx) => {
-        const y = 1040 + idx * 130
-        ctx.fillStyle = '#ffffff'
-        ctx.font = '600 44px "Geist Sans", sans-serif'
-        ctx.fillText(item.name, 540, y)
+      await downloadAllStories(exportData, (curr) => {
+        setDownloadProgress(curr)
       })
-
-      // Footer brandmark
-      ctx.textAlign = 'center'
-      ctx.fillStyle = '#ffffff'
-      ctx.font = '900 38px "Geist Sans", sans-serif'
-      ctx.fillText('SCREENLOG', 540, 1720)
-
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '400 28px "Geist Sans", sans-serif'
-      ctx.fillText('screenlog.app', 540, 1770)
-
-      // Download
-      const link = document.createElement('a')
-      link.download = `screenlog-taste-story.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      setDownloadComplete(true)
+      setTimeout(() => setDownloadComplete(false), 3500)
     } finally {
       setIsDownloading(false)
+      setDownloadProgress(0)
     }
   }
 
-  const handleShareToX = () => {
-    const text = encodeURIComponent(
-      `My Taste Story on @screenlog:\n\n1. Raycast (98% Craft)\n2. Linear (96% Craft)\n3. Arc Browser (48% Utility)\n\nPersonality: The Subgrid Purist (+4% stricter than consensus)\n\nscreenlog.app`,
-    )
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
+  // Share all 5 stories via Web Share API or Twitter intent + batch download
+  const handleShareAll = async () => {
+    setIsSharing(true)
+    try {
+      await shareAllStories(exportData)
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   if (!isOpen) return null
@@ -278,14 +300,24 @@ export default function CriticShowreelModal({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Download All 5 Stories button in top bar (accessible on every slide) */}
                 <button
                   type="button"
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white/90 transition cursor-pointer"
+                  disabled={isDownloading}
+                  onClick={handleDownloadAll}
+                  title="Download all 5 story cards (1080x1920 PNG)"
+                  className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white/90 hover:text-white transition cursor-pointer disabled:opacity-50"
                 >
-                  {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                  {isDownloading ? (
+                    <Loader2 className="size-4 animate-spin text-amber-300" />
+                  ) : downloadComplete ? (
+                    <Check className="size-4 text-emerald-400" />
+                  ) : (
+                    <Download className="size-4" />
+                  )}
                 </button>
+
                 <button
                   type="button"
                   onClick={onClose}
@@ -312,7 +344,7 @@ export default function CriticShowreelModal({
              ========================================================================= */}
           <div className="relative size-full flex-1 overflow-hidden">
             <AnimatePresence>
-              {/* SLIDE 1: The Intro Hook (Spotify Image 1 Style) */}
+              {/* SLIDE 1: The Intro Hook */}
               {currentSlide === 0 && (
                 <motion.div
                   key="slide-1"
@@ -352,14 +384,14 @@ export default function CriticShowreelModal({
                     </span>
                     <h2 className="text-3xl sm:text-4xl font-black text-neutral-950 tracking-tight leading-tight">
                       We’re ready for you, <br />
-                      <span className="text-neutral-900">@{profile?.handle || 'critic'}</span>.
+                      <span className="text-neutral-900">@{activeProfile.handle}</span>.
                     </h2>
                     <p className="text-sm font-medium text-neutral-600">
-                      Come on down. The public consensus showreel has landed.
+                      Your curated software taste showreel is live. {allSpecimensCount} specimens evaluated this cycle.
                     </p>
                   </div>
 
-                  {/* Giant Warped "#04" Typography (Spotify 2025 Style) */}
+                  {/* Giant Warped Numeral Typography (Spotify 2025 Style) */}
                   <div className="relative z-10 my-auto flex flex-col items-center">
                     <div className="relative">
                       {/* Warped checkerboard arc in corner */}
@@ -373,12 +405,12 @@ export default function CriticShowreelModal({
                           textShadow: '0 8px 0 rgba(244,63,94,0.15)',
                         }}
                       >
-                        #04
+                        #{String(issueNum).padStart(2, '0')}
                       </span>
                     </div>
 
                     <p className="text-xs font-mono font-bold uppercase tracking-widest text-neutral-500 mt-2">
-                      Digital Craft Showcase
+                      {activeProfile.role || 'Digital Craft Showcase'}
                     </p>
                   </div>
 
@@ -390,7 +422,7 @@ export default function CriticShowreelModal({
                 </motion.div>
               )}
 
-              {/* SLIDE 2: The Consensus Champion (Spotify Image 2 Style) */}
+              {/* SLIDE 2: The Consensus Champion / Personal Highest-Rated Specimen */}
               {currentSlide === 1 && (
                 <motion.div
                   key="slide-2"
@@ -409,7 +441,7 @@ export default function CriticShowreelModal({
                   <div className="relative z-10 flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold font-mono">
                       <Trophy className="size-3.5 text-amber-400" />
-                      <span>CONSENSUS WINNER</span>
+                      <span>YOUR TOP SPECIMEN</span>
                     </span>
                   </div>
 
@@ -417,7 +449,7 @@ export default function CriticShowreelModal({
                   <div className="relative z-10 my-auto space-y-4">
                     <div>
                       <span className="text-xs uppercase font-mono tracking-widest text-neutral-400 block mb-1">
-                        Collective Frontend Craft Score
+                        Top Evaluated Craft Score
                       </span>
                       <h1
                         className="text-7xl sm:text-8xl font-black text-[#a5b4fc] tracking-tight leading-none"
@@ -425,24 +457,30 @@ export default function CriticShowreelModal({
                           textShadow: '0 6px 0 #ffffff, 0 12px 24px rgba(0,0,0,0.5)',
                         }}
                       >
-                        98%
+                        {champion.craftScore}%
                       </h1>
                     </div>
 
                     <div className="space-y-1.5">
                       <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                        Raycast took the crown.
+                        {champion.name} took the crown.
                       </h3>
-                      <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-w-xs">
-                        98% Craft / 94% Utility. The highest consensus rating in Screenlog history.
+                      <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-w-xs line-clamp-3">
+                        {champion.headline || champion.quote || `${champion.craftScore}% Craft / ${champion.utilityScore}% Utility. Ranked highest in your appraisal log.`}
                       </p>
                     </div>
 
                     {/* Rubber Stamp */}
                     <div className="pt-2">
                       <img
-                        src="/assets/stamp_certified_lgtm.png"
-                        alt="Certified LGTM"
+                        src={
+                          champion.craftScore >= 90
+                            ? '/assets/stamp_certified_lgtm.png'
+                            : champion.craftScore >= 70
+                              ? '/assets/stamp_needs_polish.png'
+                              : '/assets/stamp_certified_rotten.png'
+                        }
+                        alt={champion.status || 'Status'}
                         className="w-28 rotate-[-4deg] drop-shadow-xl"
                       />
                     </div>
@@ -452,13 +490,13 @@ export default function CriticShowreelModal({
                   <div className="relative z-10 p-3 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <img
-                        src="/assets/raycast_icon.svg"
-                        alt="Raycast"
-                        className="size-9 rounded-xl bg-neutral-900 p-1"
+                        src={resolveAppIcon(champion, champion.iconUrl)}
+                        alt={champion.name}
+                        className="size-9 rounded-xl bg-neutral-900 p-1 object-contain"
                       />
                       <div>
-                        <span className="font-bold text-xs text-white block">Raycast</span>
-                        <span className="text-[11px] text-neutral-400 block">Productivity & Launcher</span>
+                        <span className="font-bold text-xs text-white block">{champion.name}</span>
+                        <span className="text-[11px] text-neutral-400 block">{champion.category}</span>
                       </div>
                     </div>
                     <span className="font-mono text-xs font-bold text-emerald-400">#1 Ranked</span>
@@ -466,7 +504,7 @@ export default function CriticShowreelModal({
                 </motion.div>
               )}
 
-              {/* SLIDE 3: Inverted Nominee Blocks (Spotify Image 3 Style) */}
+              {/* SLIDE 3: Inverted Nominee Blocks (Top Specimens) */}
               {currentSlide === 2 && (
                 <motion.div
                   key="slide-3"
@@ -482,20 +520,22 @@ export default function CriticShowreelModal({
                   {/* Header */}
                   <div className="relative z-10 space-y-1">
                     <span className="text-xs uppercase font-mono font-bold tracking-widest text-neutral-500 block">
-                      Consensus Showreel #04
+                      Taste Story #{String(issueNum).padStart(2, '0')}
                     </span>
                     <h2 className="text-2xl sm:text-3xl font-black text-neutral-950 tracking-tight">
-                      This Week’s Specimens
+                      Top Evaluated Specimens
                     </h2>
                   </div>
 
                   {/* Staggered Inverted Black Blocks */}
                   <div className="relative z-10 space-y-3 my-auto">
-                    {items.map((item, idx) => {
+                    {activeItems.map((item, idx) => {
                       const stamp =
-                        item.status === 'Certified LGTM'
+                        item.craftScore >= 90
                           ? '/assets/stamp_certified_lgtm.png'
-                          : '/assets/stamp_needs_polish.png'
+                          : item.craftScore >= 70
+                            ? '/assets/stamp_needs_polish.png'
+                            : '/assets/stamp_certified_rotten.png'
 
                       return (
                         <div
@@ -510,6 +550,11 @@ export default function CriticShowreelModal({
                             <span className="text-2xl sm:text-3xl font-black text-neutral-400 font-mono">
                               {idx + 1}
                             </span>
+                            <img
+                              src={resolveAppIcon(item, item.iconUrl)}
+                              alt={item.name}
+                              className="size-8 rounded-lg bg-neutral-900 p-0.5 object-contain shrink-0"
+                            />
                             <div className="min-w-0">
                               <h4 className="text-lg sm:text-xl font-black text-white truncate tracking-tight">
                                 {item.name}
@@ -535,15 +580,15 @@ export default function CriticShowreelModal({
                     })}
                   </div>
 
-                  {/* Spotify Wrapped-style Footer */}
+                  {/* Footer */}
                   <div className="relative z-10 flex items-center justify-between text-xs font-mono text-neutral-500 pt-3 border-t border-black/10">
-                    <span className="font-bold text-neutral-900">SCREENLOG · ISSUE #04</span>
-                    <span>screenlog.app</span>
+                    <span className="font-bold text-neutral-900">SCREENLOG · ISSUE #{String(issueNum).padStart(2, '0')}</span>
+                    <span>CURATED CRAFT</span>
                   </div>
                 </motion.div>
               )}
 
-              {/* SLIDE 4: Critic Personality Type (EXACT YOUTUBE RECAP 2025 STYLE) */}
+              {/* SLIDE 4: Critic Personality Type */}
               {currentSlide === 3 && (
                 <motion.div
                   key="slide-4"
@@ -559,10 +604,10 @@ export default function CriticShowreelModal({
                 >
                   {/* Top Content Stack */}
                   <div className="relative z-10 space-y-6">
-                    {/* Header: 2026 RECAP + Sparkles */}
+                    {/* Header: TASTE PROFILE + Sparkles */}
                     <div className="flex items-center gap-2.5">
                       <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-sans">
-                        2026 RECAP
+                        TASTE PROFILE
                       </h1>
                       <span className="text-white text-base opacity-90 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] select-none">
                         ✦ ✦
@@ -576,89 +621,56 @@ export default function CriticShowreelModal({
                           Personality type
                         </span>
                         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1 leading-tight">
-                          The Subgrid Purist
+                          {archetype.title}
                         </h2>
                       </div>
 
                       {/* 3D Mascot Character */}
                       <div className="relative size-20 sm:size-24 shrink-0 -mt-2 -mr-1">
                         <img
-                          src="/assets/subgrid_purist_3d.jpg"
-                          alt="The Subgrid Purist Mascot"
+                          src={archetype.mascotUrl}
+                          alt={archetype.title}
                           className="size-full object-contain rounded-2xl mix-blend-screen drop-shadow-[0_0_20px_rgba(168,85,247,0.4)]"
                         />
                       </div>
                     </div>
 
-                    {/* Top interests (Neon Sliders matching YouTube Recap Image 2) */}
+                    {/* Top interests (Neon Sliders) */}
                     <div className="space-y-4 pt-1">
                       <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
                         Top interests
                       </h3>
 
-                      {/* Metric 1: Micro-motion */}
-                      <div className="space-y-2">
-                        <span className="text-sm sm:text-base font-normal text-neutral-100 block">
-                          Micro-motion sensitivity
-                        </span>
-                        <div className="w-full bg-neutral-800 h-[2.5px] rounded-full relative">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#ff0055] to-[#ff2a6d] rounded-full shadow-[0_0_8px_rgba(255,0,85,0.8)]"
-                            style={{ width: '94%' }}
-                          />
-                          <div
-                            className="size-3.5 rounded-full bg-[#ff0055] shadow-[0_0_10px_#ff0055] absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none"
-                            style={{ left: '94%' }}
-                          />
+                      {archetype.sliders.map((slider) => (
+                        <div key={slider.label} className="space-y-2">
+                          <span className="text-sm sm:text-base font-normal text-neutral-100 block">
+                            {slider.label}
+                          </span>
+                          <div className="w-full bg-neutral-800 h-[2.5px] rounded-full relative">
+                            <div
+                              className="h-full bg-gradient-to-r from-[#ff0055] to-[#ff2a6d] rounded-full shadow-[0_0_8px_rgba(255,0,85,0.8)]"
+                              style={{ width: `${slider.score}%` }}
+                            />
+                            <div
+                              className="size-3.5 rounded-full bg-[#ff0055] shadow-[0_0_10px_#ff0055] absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none"
+                              style={{ left: `${slider.score}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Metric 2: Subgrid layout */}
-                      <div className="space-y-2">
-                        <span className="text-sm sm:text-base font-normal text-neutral-100 block">
-                          Subgrid layout discipline
-                        </span>
-                        <div className="w-full bg-neutral-800 h-[2.5px] rounded-full relative">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#ff0055] to-[#ff2a6d] rounded-full shadow-[0_0_8px_rgba(255,0,85,0.8)]"
-                            style={{ width: '98%' }}
-                          />
-                          <div
-                            className="size-3.5 rounded-full bg-[#ff0055] shadow-[0_0_10px_#ff0055] absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none"
-                            style={{ left: '98%' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Metric 3: Ergonomic tolerance */}
-                      <div className="space-y-2">
-                        <span className="text-sm sm:text-base font-normal text-neutral-100 block">
-                          Ergonomic tolerance
-                        </span>
-                        <div className="w-full bg-neutral-800 h-[2.5px] rounded-full relative">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#ff0055] to-[#ff2a6d] rounded-full shadow-[0_0_8px_rgba(255,0,85,0.8)]"
-                            style={{ width: '48%' }}
-                          />
-                          <div
-                            className="size-3.5 rounded-full bg-[#ff0055] shadow-[0_0_10px_#ff0055] absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none"
-                            style={{ left: '48%' }}
-                          />
-                        </div>
-                      </div>
+                      ))}
                     </div>
 
-                    {/* Top specimens (Vertical List matching YouTube Recap Top Channels) */}
+                    {/* Top specimens */}
                     <div className="space-y-3.5 pt-1">
                       <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
                         Top specimens
                       </h3>
 
                       <div className="space-y-3">
-                        {items.map((item) => (
+                        {activeItems.map((item) => (
                           <div key={item.slug} className="flex items-center gap-3.5">
                             <img
-                              src={item.iconUrl || '/assets/raycast_icon.svg'}
+                              src={resolveAppIcon(item, item.iconUrl)}
                               alt={item.name}
                               className="size-8 rounded-full object-cover ring-1 ring-white/10 shrink-0 bg-neutral-900"
                             />
@@ -671,24 +683,22 @@ export default function CriticShowreelModal({
                     </div>
                   </div>
 
-                  {/* YouTube Recap-style Brandmark Footer */}
-                  <div className="relative z-10 pt-4 flex items-center justify-between">
+                  {/* Screenlog Brandmark Footer (No YouTube icon) */}
+                  <div className="relative z-10 pt-4 flex items-center justify-between border-t border-white/10">
                     <div className="flex items-center gap-2">
-                      <div className="size-4.5 rounded-[4px] bg-rose-600 flex items-center justify-center shadow-[0_0_8px_rgba(225,29,72,0.6)]">
-                        <div className="size-0 border-y-[3.5px] border-y-transparent border-l-[6px] border-l-white ml-0.5" />
-                      </div>
-                      <span className="text-sm font-black tracking-tight text-white font-sans">
+                      <div className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" />
+                      <span className="text-sm font-black tracking-widest uppercase text-white font-sans">
                         SCREENLOG
                       </span>
                     </div>
-                    <span className="text-xs text-neutral-400 font-normal">
-                      screenlog.app/recap
+                    <span className="text-xs text-neutral-400 font-mono">
+                      CRITIC SHOWREEL · ISSUE #{String(issueNum).padStart(2, '0')}
                     </span>
                   </div>
                 </motion.div>
               )}
 
-              {/* SLIDE 5: The Iridescent Squircle Share Card (YOUTUBE RECAP IMAGE 3 STYLE) */}
+              {/* SLIDE 5: The Iridescent Squircle Share Card */}
               {currentSlide === 4 && (
                 <motion.div
                   key="slide-5"
@@ -698,7 +708,7 @@ export default function CriticShowreelModal({
                   transition={{ duration: 0.22, ease: 'easeOut' }}
                   className="absolute inset-0 size-full bg-black text-white p-4 sm:p-5 pt-18 pb-4 overflow-hidden flex flex-col justify-between"
                 >
-                  {/* Glowing Iridescent Squircle Portal (YouTube Image 3) */}
+                  {/* Glowing Iridescent Squircle Portal */}
                   <div className="relative my-auto w-full max-w-[340px] mx-auto">
                     {/* Diffuse Outer Ambient Neon Glow Halo */}
                     <div className="absolute -inset-1 rounded-[42px] bg-gradient-to-tr from-[#84cc16] via-[#f59e0b] to-[#ec4899] opacity-40 blur-xl pointer-events-none" />
@@ -707,22 +717,22 @@ export default function CriticShowreelModal({
                     <div className="relative p-[2.5px] rounded-[38px] bg-gradient-to-tr from-[#84cc16] via-[#f59e0b] to-[#ec4899] shadow-[0_0_35px_rgba(236,72,153,0.25)]">
                       {/* Deep Black Inner Card */}
                       <div className="bg-[#09090c] rounded-[35px] p-6 sm:p-7 text-center relative overflow-hidden">
-                        {/* Subtle atmospheric center glow */}
+                        {/* Atmospheric center glow */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
                         {/* Top Subtitle */}
                         <span className="text-xs sm:text-sm font-medium text-neutral-400 block tracking-wide">
-                          Showreel #{String(issueNumber).padStart(2, '0')} · 2026
+                          Showreel #{String(issueNum).padStart(2, '0')} · @{activeProfile.handle}
                         </span>
 
                         {/* Main Title */}
                         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-3">
-                          The Subgrid Purist
+                          {archetype.title}
                         </h2>
 
                         {/* Narrative Paragraph */}
                         <p className="text-xs sm:text-sm text-neutral-300 font-normal leading-relaxed mt-3 max-w-[260px] mx-auto">
-                          You evaluated 3 desktop specimens with microscopic motion sensitivity, strict 8pt spatial discipline, and zero ergonomic tolerance.
+                          {archetype.narrative}
                         </p>
 
                         {/* Subhead */}
@@ -732,10 +742,10 @@ export default function CriticShowreelModal({
 
                         {/* Vertical Clean Specimen List */}
                         <div className="space-y-3 max-w-[200px] mx-auto text-left">
-                          {items.map((item) => (
+                          {activeItems.map((item) => (
                             <div key={item.slug} className="flex items-center gap-3">
                               <img
-                                src={item.iconUrl || '/assets/raycast_icon.svg'}
+                                src={resolveAppIcon(item, item.iconUrl)}
                                 alt={item.name}
                                 className="size-7 rounded-full object-cover ring-1 ring-white/10 shrink-0 bg-neutral-900"
                               />
@@ -749,25 +759,51 @@ export default function CriticShowreelModal({
                     </div>
                   </div>
 
-                  {/* YouTube Recap-style Bottom Action Bar */}
-                  <div className="relative z-10 flex items-center gap-3 px-2 pt-2">
+                  {/* All 5 Stories Action Bar */}
+                  <div className="relative z-10 flex items-center gap-2 sm:gap-3 px-1 pt-2">
                     <button
                       type="button"
                       disabled={isDownloading}
-                      onClick={handleDownloadStory}
-                      className="size-12 rounded-full border border-white/20 bg-black/70 hover:bg-white/10 flex items-center justify-center text-white transition active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 shadow-lg"
-                      title="Download Story PNG (1080x1920)"
+                      onClick={handleDownloadAll}
+                      className="h-12 px-4 sm:px-5 rounded-full border border-white/20 bg-black/70 hover:bg-white/10 flex items-center justify-center gap-2 text-white font-medium text-xs sm:text-sm transition active:scale-95 disabled:opacity-50 cursor-pointer shadow-lg"
+                      title="Download all 5 story cards (1080x1920 PNG)"
                     >
-                      <Download className="size-5" />
+                      {isDownloading ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin text-amber-300" />
+                          <span>Exporting ({downloadProgress}/5)...</span>
+                        </>
+                      ) : downloadComplete ? (
+                        <>
+                          <Check className="size-4 text-emerald-400" />
+                          <span>All 5 Downloaded!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="size-4.5" />
+                          <span>Download All 5 (PNG)</span>
+                        </>
+                      )}
                     </button>
 
                     <button
                       type="button"
-                      onClick={handleShareToX}
-                      className="h-12 flex-1 rounded-full border border-white/20 bg-black/70 hover:bg-white/10 flex items-center justify-center gap-2 text-white font-medium text-sm transition active:scale-95 cursor-pointer shadow-lg"
+                      disabled={isSharing}
+                      onClick={handleShareAll}
+                      className="h-12 flex-1 rounded-full border border-white/20 bg-black/70 hover:bg-white/10 flex items-center justify-center gap-2 text-white font-medium text-xs sm:text-sm transition active:scale-95 disabled:opacity-50 cursor-pointer shadow-lg"
+                      title="Share all 5 story cards to social sheet"
                     >
-                      <Share2 className="size-4.5" />
-                      <span>Share</span>
+                      {isSharing ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin text-rose-400" />
+                          <span>Sharing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="size-4.5" />
+                          <span>Share All 5</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </motion.div>

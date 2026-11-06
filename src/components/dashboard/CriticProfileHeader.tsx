@@ -50,7 +50,9 @@ export default function CriticProfileHeader({
   const handleStoryClick = (e?: React.MouseEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
-    window.dispatchEvent(new CustomEvent('screenlog:open-showreel'))
+    window.dispatchEvent(
+      new CustomEvent('screenlog:open-showreel', { detail: { handle: profile?.handle } }),
+    )
     window.dispatchEvent(new CustomEvent('screenlog:open-drop-story'))
   }
 

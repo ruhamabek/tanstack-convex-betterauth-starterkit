@@ -163,10 +163,31 @@ export const getFollowStats = query({
       .first()
 
     if (profile) {
-      const following = await ctx.db
+      let following = await ctx.db
         .query('follows')
         .withIndex('by_follower', (q) => q.eq('followerUserId', profile.userId))
         .collect()
+
+      if (following.length === 0) {
+        const DEMO_USER_IDS: Record<string, string> = {
+          subgrid_sorcerer: 'user_marcus_vance',
+          pixel_snob: 'user_elena_rostova',
+          kerning_ghost: 'user_alex_thorne',
+          motion_curator: 'user_sarah_lin',
+          bananas: 'user_bananas',
+        }
+        const defaultId = DEMO_USER_IDS[cleanHandle]
+        if (defaultId && defaultId !== profile.userId) {
+          const fallbackFollowing = await ctx.db
+            .query('follows')
+            .withIndex('by_follower', (q) => q.eq('followerUserId', defaultId))
+            .collect()
+          if (fallbackFollowing.length > 0) {
+            following = fallbackFollowing
+          }
+        }
+      }
+
       followingCount = following.length
     }
 
@@ -184,10 +205,28 @@ export const getMyFollowingHandles = query({
     if (!user) return []
 
     const currentUserId = String(user._id)
-    const follows = await ctx.db
+    let follows = await ctx.db
       .query('follows')
       .withIndex('by_follower', (q) => q.eq('followerUserId', currentUserId))
       .collect()
+
+    if (follows.length === 0 && user.email) {
+      const emailLower = user.email.toLowerCase()
+      const EMAIL_TO_DEFAULT_ID: Record<string, string> = {
+        'marcus@screenlog.dev': 'user_marcus_vance',
+        'elena@screenlog.dev': 'user_elena_rostova',
+        'alex@screenlog.dev': 'user_alex_thorne',
+        'sarah@screenlog.dev': 'motion_curator',
+        'bananas@screenlog.dev': 'user_bananas',
+      }
+      const defaultId = EMAIL_TO_DEFAULT_ID[emailLower]
+      if (defaultId) {
+        follows = await ctx.db
+          .query('follows')
+          .withIndex('by_follower', (q) => q.eq('followerUserId', defaultId))
+          .collect()
+      }
+    }
 
     return follows.map((f) => f.followingHandle)
   },

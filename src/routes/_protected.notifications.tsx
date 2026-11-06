@@ -139,6 +139,7 @@ function NotificationsPage() {
   }
 
   const handleNotificationClick = async (n: (typeof notifications)[0]) => {
+    // 1. Mark as read immediately
     if (!n.read) {
       try {
         await markAsRead.mutateAsync({ notificationId: n._id })
@@ -147,18 +148,61 @@ function NotificationsPage() {
       }
     }
 
+    // 2. Direct to source based on notification type:
     if (n.type === 'follow') {
+      // Source is the follower critic's profile
       navigate({ to: '/u/$handle', params: { handle: n.actorHandle } })
       return
     }
 
-    if (n.reviewId) {
-      const match = communityReviews.find((r) => r._id === n.reviewId)
-      if (match) {
-        setActiveDiscussionReview(match)
-      } else {
-        navigate({ to: '/feed' })
+    // Resolve app slug
+    const resolvedSlug =
+      (n as any).appSlug ||
+      (n.appName
+        ? apps.find((a) => a.name.toLowerCase() === n.appName?.toLowerCase())?.slug
+        : undefined)
+
+    // For comment / reply: open the specific critique's discussion drawer or app page
+    if (n.type === 'comment' || n.type === 'reply') {
+      if (n.reviewId) {
+        const match = communityReviews.find((r) => r._id === n.reviewId)
+        if (match) {
+          setActiveDiscussionReview(match)
+          return
+        }
       }
+
+      if (resolvedSlug) {
+        navigate({ to: '/app/$slug', params: { slug: resolvedSlug } })
+        return
+      }
+
+      navigate({ to: '/feed' })
+      return
+    }
+
+    // For endorse / quote: navigate to the app consensus page or feed
+    if (n.type === 'endorse' || n.type === 'quote') {
+      if (resolvedSlug) {
+        navigate({ to: '/app/$slug', params: { slug: resolvedSlug } })
+        return
+      }
+
+      if (n.reviewId) {
+        const match = communityReviews.find((r) => r._id === n.reviewId)
+        if (match) {
+          setActiveDiscussionReview(match)
+          return
+        }
+      }
+
+      navigate({ to: '/feed' })
+      return
+    }
+
+    // Fallback: if actor is present, view profile
+    if (n.actorHandle) {
+      navigate({ to: '/u/$handle', params: { handle: n.actorHandle } })
     }
   }
 
@@ -180,39 +224,66 @@ function NotificationsPage() {
   }
 
   const getNotificationDescription = (n: (typeof notifications)[0]) => {
+    const slug =
+      (n as any).appSlug ||
+      (n.appName
+        ? apps.find((a) => a.name.toLowerCase() === n.appName?.toLowerCase())?.slug
+        : undefined)
+
+    const renderAppBadge = () => {
+      if (!n.appName) return <strong className="text-foreground font-bold">software specimen</strong>
+      if (slug) {
+        return (
+          <Link
+            to="/app/$slug"
+            params={{ slug }}
+            onClick={(e) => e.stopPropagation()}
+            className="text-foreground font-bold hover:underline inline-flex items-center gap-0.5 !no-underline"
+            title={`View ${n.appName} consensus`}
+          >
+            <span className="underline decoration-black/20 hover:decoration-black">{n.appName}</span>
+          </Link>
+        )
+      }
+      return <strong className="text-foreground font-bold">{n.appName}</strong>
+    }
+
     switch (n.type) {
       case 'follow':
         return (
           <span>
-            started following your <strong className="text-foreground font-bold">Critic Persona</strong>
+            started following your{' '}
+            <Link
+              to="/dashboard"
+              onClick={(e) => e.stopPropagation()}
+              className="text-foreground font-bold hover:underline !no-underline"
+            >
+              Critic Persona
+            </Link>
           </span>
         )
       case 'endorse':
         return (
           <span>
-            endorsed your consensus critique of{' '}
-            <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong>
+            endorsed your consensus critique of {renderAppBadge()}
           </span>
         )
       case 'quote':
         return (
           <span>
-            quoted your appraisal of{' '}
-            <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong> with a counter-appraisal
+            quoted your appraisal of {renderAppBadge()} with a counter-appraisal
           </span>
         )
       case 'comment':
         return (
           <span>
-            commented on your evaluation of{' '}
-            <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong>
+            commented on your evaluation of {renderAppBadge()}
           </span>
         )
       case 'reply':
         return (
           <span>
-            replied to your comment on{' '}
-            <strong className="text-foreground font-bold">{n.appName || 'software specimen'}</strong>
+            replied to your comment on {renderAppBadge()}
           </span>
         )
       default:
@@ -307,7 +378,7 @@ function NotificationsPage() {
                 <div
                   key={n._id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`p-4 sm:p-5 transition cursor-pointer flex items-start gap-3.5 sm:gap-4 select-none relative ${
+                  className={`p-4 sm:p-5 transition cursor-pointer flex items-start gap-3.5 sm:gap-4 select-none relative group ${
                     isUnread
                       ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08]'
                       : 'hover:bg-black/[0.02]'
@@ -365,12 +436,27 @@ function NotificationsPage() {
                       {getNotificationDescription(n)}
                     </p>
 
-                    {/* Preview quote / headline snippet */}
-                    {n.previewText && (
-                      <div className="mt-2.5 px-3.5 py-2 rounded-2xl bg-black/[0.03] border border-black/5 text-xs text-neutral-700 font-serif italic line-clamp-2">
-                        &ldquo;{n.previewText}&rdquo;
+                    {/* Destination Action Hint & Preview */}
+                    <div className="mt-2.5 flex items-center justify-between gap-2">
+                      {n.previewText ? (
+                        <div className="px-3.5 py-1.5 rounded-2xl bg-black/[0.03] border border-black/5 text-xs text-neutral-700 font-serif italic line-clamp-1 flex-1 min-w-0">
+                          &ldquo;{n.previewText}&rdquo;
+                        </div>
+                      ) : (
+                        <div />
+                      )}
+
+                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-neutral-400 group-hover:text-foreground transition pl-2">
+                        <span>
+                          {n.type === 'follow'
+                            ? 'View profile'
+                            : n.type === 'comment' || n.type === 'reply'
+                              ? 'View discussion'
+                              : 'View consensus'}
+                        </span>
+                        <ArrowRight className="size-3 text-neutral-400 group-hover:text-foreground transition" />
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Right Column: Unread Accent Dot */}

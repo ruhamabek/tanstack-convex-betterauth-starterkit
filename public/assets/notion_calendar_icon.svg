@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#191919" />
+  <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" stroke="rgba(255,255,255,0.12)" />
+  
+  <!-- Calendar Body -->
+  <rect x="12" y="14" width="40" height="38" rx="8" fill="#FFFFFF" />
+  
+  <!-- Top Red/Coral Header Bar -->
+  <path d="M12 22C12 17.5817 15.5817 14 20 14H44C48.4183 14 52 17.5817 52 22V24H12V22Z" fill="#EA4335" />
+  
+  <!-- Calendar Rings / Pins -->
+  <rect x="20" y="10" width="3.5" height="7" rx="1.75" fill="#FFFFFF" stroke="#191919" stroke-width="1.5" />
+  <rect x="40.5" y="10" width="3.5" height="7" rx="1.75" fill="#FFFFFF" stroke="#191919" stroke-width="1.5" />
+
+  <!-- Date "31" in bold modern geometry -->
+  <!-- '3' -->
+  <path d="M22 30H30C31.1 30 32 30.9 32 32C32 32.8 31.4 33.5 30.6 33.8C31.5 34.2 32.2 35 32.2 36C32.2 37.3 31.1 38.5 29.8 38.5H22V36H29.5C29.8 36 30 35.8 30 35.5C30 35.2 29.8 35 29.5 35H25V33H29.5C29.8 33 30 32.8 30 32.5C30 32.2 29.8 32 29.5 32H22V30Z" fill="#191919" />
+
+  <!-- '1' -->
+  <path d="M37 32L34.5 33.5V31.2L37 29.8H39.5V38.5H36.8V32H37Z" fill="#191919" />
+
+  <!-- Scheduling Accent Dot (Notion blue) -->
+  <circle cx="43" cy="45" r="2.5" fill="#2F80ED" />
+  <rect x="18" y="44" width="20" height="2" rx="1" fill="#E0E0E0" />
+</svg>

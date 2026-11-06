@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { compressImageToWebP } from '../../lib/imageCompression'
 import { parseVideoUrl } from '../../lib/videoEmbed'
 import { getFaviconFromUrl } from '../../lib/domainFavicon'
+import { resolveAppIcon, handleAppIconError } from '../../lib/appIcons'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 
 export interface EvaluateAppModalProps {
@@ -235,12 +236,18 @@ export default function EvaluateAppModal({
     }
   }
 
-  // Auto-resolve icon from website URL
+  // Auto-resolve icon from app, catalog, or website URL
   const liveIconUrl = useMemo(() => {
-    if (selectedExistingApp?.iconUrl) return selectedExistingApp.iconUrl
+    if (selectedExistingApp) {
+      return resolveAppIcon(selectedExistingApp)
+    }
+    if (formValues.appName) {
+      const local = resolveAppIcon({ name: formValues.appName })
+      if (local) return local
+    }
     if (formValues.websiteUrl) return getFaviconFromUrl(formValues.websiteUrl)
     return ''
-  }, [selectedExistingApp, formValues.websiteUrl])
+  }, [selectedExistingApp, formValues.appName, formValues.websiteUrl])
 
   // Dynamic stamp computation
   const isLgtm = formValues.craftScore >= 90 && formValues.utilityScore >= 80
@@ -460,16 +467,21 @@ export default function EvaluateAppModal({
                                   : 'bg-white/70 hover:bg-white border-black/10'
                               }`}
                             >
-                              {app.iconUrl && (
-                                <img
-                                  src={app.iconUrl}
-                                  alt={app.name}
-                                  className="size-6 rounded-md object-contain shrink-0"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none'
-                                  }}
-                                />
-                              )}
+                              {(() => {
+                                const iconSrc = resolveAppIcon(app)
+                                return iconSrc ? (
+                                  <img
+                                    src={iconSrc}
+                                    alt={app.name}
+                                    className="size-6 rounded-md object-contain shrink-0"
+                                    onError={(e) => handleAppIconError(e, app.name, app.slug)}
+                                  />
+                                ) : (
+                                  <div className="size-6 rounded-md bg-amber-500/10 border border-amber-600/20 text-amber-900 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                    {app.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )
+                              })()}
                               <div className="min-w-0 flex-1">
                                 <span className="text-xs font-bold text-foreground truncate block">
                                   {app.name}
@@ -903,6 +915,7 @@ export default function EvaluateAppModal({
                         src={liveIconUrl}
                         alt="App Logo"
                         className="size-12 rounded-xl object-contain border border-black/10 bg-white p-1 shadow-2xs"
+                        onError={(e) => handleAppIconError(e, activeDisplayAppName, selectedExistingApp?.slug)}
                       />
                     ) : (
                       <Upload className="size-7 text-neutral-400" />
@@ -921,12 +934,17 @@ export default function EvaluateAppModal({
               <div className="p-5 sm:p-6 space-y-3.5 relative">
                 {/* Header */}
                 <div className="flex items-center gap-3 border-b border-black/10 pb-3">
-                  {liveIconUrl && (
+                  {liveIconUrl ? (
                     <img
                       src={liveIconUrl}
                       alt={activeDisplayAppName}
                       className="size-9 rounded-xl object-contain border border-black/10 bg-white p-0.5 shrink-0 shadow-2xs"
+                      onError={(e) => handleAppIconError(e, activeDisplayAppName, selectedExistingApp?.slug)}
                     />
+                  ) : (
+                    <div className="size-9 rounded-xl bg-amber-500/10 border border-amber-600/20 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      {activeDisplayAppName.slice(0, 2).toUpperCase()}
+                    </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <h4 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">

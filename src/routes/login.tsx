@@ -1,9 +1,13 @@
 import { useState, useTransition } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Sparkles, RefreshCw } from 'lucide-react'
+import { useConvexMutation } from '@convex-dev/react-query'
 import { z } from 'zod'
 import { authClient } from '../lib/auth-client'
+import { api } from '../../convex/_generated/api'
 import Logo from '../components/Logo'
+import CriticAvatar from '../components/CriticAvatar'
+import { DEMO_PERSONAS } from '../components/dashboard/PersonaSwitcherModal'
 import { useAppForm } from '../components/form'
 
 export const Route = createFileRoute('/login')({
@@ -81,6 +85,52 @@ function LoginPage() {
     text: string
   } | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [demoSwitchingHandle, setDemoSwitchingHandle] = useState<string | null>(null)
+  const linkDemoUserMutation = useConvexMutation(api.seed.linkDemoUserToProfile)
+
+  const handleDemoLogin = async (persona: (typeof DEMO_PERSONAS)[0]) => {
+    setDemoSwitchingHandle(persona.handle)
+    setStatusMessage(null)
+    try {
+      try {
+        await authClient.signOut()
+      } catch {
+        // ignore
+      }
+
+      const password = 'critic1234'
+      const signInRes = await authClient.signIn.email({
+        email: persona.email,
+        password,
+      })
+
+      if (signInRes?.error) {
+        // Auto-create Better Auth account on first click
+        const signUpRes = await authClient.signUp.email({
+          email: persona.email,
+          password,
+          name: persona.displayName,
+        })
+        if (signUpRes?.error) {
+          throw new Error(signUpRes.error.message || 'Authentication failed')
+        }
+      }
+
+      try {
+        await linkDemoUserMutation({ handle: persona.handle })
+      } catch {
+        // ignore - ensureMyProfile on dashboard will link automatically
+      }
+
+      window.location.href = '/dashboard'
+    } catch (err: any) {
+      setStatusMessage({
+        type: 'error',
+        text: err?.message || 'Failed to sign in as demo critic',
+      })
+      setDemoSwitchingHandle(null)
+    }
+  }
 
   const form = useAppForm({
     defaultValues: {
@@ -333,6 +383,65 @@ function LoginPage() {
               </form.SubmitButton>
             </form.AppForm>
           </form>
+
+          {/* Quick Demo Critic Accounts Switcher (1-Click Test Access) */}
+          <div className="mt-7 pt-5 border-t border-black/10">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-foreground tracking-tight">
+                  1-Click Demo Critic Accounts
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400">
+                pwd: critic1234
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-1.5">
+              {DEMO_PERSONAS.map((critic) => (
+                <button
+                  key={critic.handle}
+                  type="button"
+                  disabled={demoSwitchingHandle !== null}
+                  onClick={() => handleDemoLogin(critic)}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl bg-white hover:bg-neutral-50/80 border border-black/10 hover:border-black/20 text-left transition active:scale-[0.99] cursor-pointer disabled:opacity-50 group shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CriticAvatar
+                      avatarUrl={critic.avatarUrl}
+                      seed={critic.handle}
+                      size="sm"
+                      className="shrink-0 border border-black/10 shadow-2xs"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-foreground truncate group-hover:underline">
+                          {critic.displayName}
+                        </span>
+                        <span className="text-[10px] font-mono font-semibold text-amber-900 bg-amber-500/15 px-1 rounded">
+                          #{critic.criticNumber}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-mono text-neutral-400 truncate">
+                        @{critic.handle} · {critic.role}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 pr-1">
+                    {demoSwitchingHandle === critic.handle ? (
+                      <RefreshCw className="size-3.5 animate-spin text-neutral-500" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-neutral-500 group-hover:text-foreground">
+                        Enter →
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

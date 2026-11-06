@@ -1,6 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="16" fill="#FF6363" />
-  <path d="M20 32L32 20L44 32L32 44L20 32Z" fill="white" />
-  <circle cx="32" cy="32" r="4" fill="#FF6363" />
-  <path d="M14 20L20 14M44 50L50 44M14 44L20 50M44 14L50 20" stroke="white" stroke-width="3" stroke-linecap="round" />
+  <rect width="64" height="64" rx="14" fill="#FF6363" />
+  <g fill="white">
+    <!-- Center diamond -->
+    <path d="M32 22L42 32L32 42L22 32Z" />
+    <!-- Center red cutout -->
+    <path d="M32 27L37 32L32 37L27 32Z" fill="#FF6363" />
+    <!-- Top Ray -->
+    <path d="M32 10L36 17L32 20L28 17Z" />
+    <!-- Bottom Ray -->
+    <path d="M32 54L28 47L32 44L36 47Z" />
+    <!-- Left Ray -->
+    <path d="M10 32L17 28L20 32L17 36Z" />
+    <!-- Right Ray -->
+    <path d="M54 32L47 36L44 32L47 28Z" />
+    <!-- Diagonal Corner Accents -->
+    <circle cx="19" cy="19" r="2.5" />
+    <circle cx="45" cy="19" r="2.5" />
+    <circle cx="19" cy="45" r="2.5" />
+    <circle cx="45" cy="45" r="2.5" />
+  </g>
 </svg>

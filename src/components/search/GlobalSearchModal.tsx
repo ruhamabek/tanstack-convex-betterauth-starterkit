@@ -17,6 +17,7 @@ import {
 import { api } from '../../../convex/_generated/api'
 import { Dialog, DialogContent } from '../ui/Dialog'
 import CriticAvatar from '../CriticAvatar'
+import { resolveAppIcon, handleAppIconError } from '../../lib/appIcons'
 
 export interface GlobalSearchModalProps {
   isOpen: boolean
@@ -373,12 +374,10 @@ export default function GlobalSearchModal({
                     >
                       <div className="flex items-center gap-3.5 min-w-0 pr-3">
                         <img
-                          src={app.iconUrl}
+                          src={resolveAppIcon(app)}
                           alt={app.name}
-                          className="size-11 sm:size-12 rounded-2xl object-cover border border-black/10 shrink-0 bg-white"
-                          onError={(e) => {
-                            ;(e.target as HTMLElement).style.display = 'none'
-                          }}
+                          className="size-11 sm:size-12 rounded-2xl object-contain p-1 border border-black/10 shrink-0 bg-white shadow-2xs"
+                          onError={(e) => handleAppIconError(e, app.name, app.slug)}
                         />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">

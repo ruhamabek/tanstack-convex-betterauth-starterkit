@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#1C1C1C" />
+  <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" stroke="rgba(255,255,255,0.08)" />
+  <defs>
+    <linearGradient id="supaBolt" x1="20" y1="12" x2="44" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3ECF8E" />
+      <stop offset="100%" stop-color="#24B47E" />
+    </linearGradient>
+  </defs>
+  <path d="M35 12L18 34H31L27 52L46 28H33L35 12Z" fill="url(#supaBolt)" />
+</svg>

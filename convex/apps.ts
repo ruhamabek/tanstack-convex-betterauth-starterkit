@@ -3,6 +3,31 @@ import { mutation, query } from './_generated/server'
 import { requireAuthUser } from './helpers'
 import type { Id } from './_generated/dataModel'
 
+const APP_LOCAL_ICONS: Record<string, string> = {
+  raycast: '/assets/raycast_favicon.png',
+  'arc-browser-v2': '/assets/arc_favicon.png',
+  cron: '/assets/notion_logo.png',
+  linear: '/assets/linear_icon.png',
+  supabase: '/assets/supabase_icon.svg',
+  notion: '/assets/notion_logo.png',
+}
+
+export function normalizeAppIcon<T extends { slug: string; iconUrl?: string }>(app: T): T {
+  if (!app) return app
+  const local = APP_LOCAL_ICONS[app.slug]
+  if (local) {
+    return { ...app, iconUrl: local }
+  }
+  if (app.iconUrl) {
+    const urlLower = app.iconUrl.toLowerCase()
+    if (urlLower.includes('raycast.com')) return { ...app, iconUrl: '/assets/raycast_favicon.png' }
+    if (urlLower.includes('arc.net')) return { ...app, iconUrl: '/assets/arc_favicon.png' }
+    if (urlLower.includes('notion.so') || urlLower.includes('notion.com')) return { ...app, iconUrl: '/assets/notion_logo.png' }
+    if (urlLower.includes('linear.app') && !urlLower.includes('.png')) return { ...app, iconUrl: '/assets/linear_icon.png' }
+  }
+  return app
+}
+
 export const list = query({
   args: {
     category: v.optional(v.string()),
@@ -36,7 +61,28 @@ export const list = query({
     }
 
     // Sort by craftScore descending by default
-    return apps.sort((a, b) => b.craftScore - a.craftScore)
+    return apps.map(normalizeAppIcon).sort((a, b) => b.craftScore - a.craftScore)
+  },
+})
+
+export const listTrending = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 5
+    const rawApps = await ctx.db.query('apps').collect()
+    const apps = rawApps.map(normalizeAppIcon)
+
+    // Sort by reviewCount descending, then craftScore descending
+    const sorted = apps.sort((a, b) => {
+      if (b.reviewCount !== a.reviewCount) {
+        return b.reviewCount - a.reviewCount
+      }
+      return b.craftScore - a.craftScore
+    })
+
+    return sorted.slice(0, limit)
   },
 })
 
@@ -46,10 +92,11 @@ export const getBySlug = query({
   },
   handler: async (ctx, args) => {
     const cleanSlug = args.slug.trim().toLowerCase()
-    return await ctx.db
+    const app = await ctx.db
       .query('apps')
       .withIndex('by_slug', (q) => q.eq('slug', cleanSlug))
       .first()
+    return app ? normalizeAppIcon(app) : null
   },
 })
 
@@ -59,21 +106,23 @@ export const getAppConsensus = query({
   },
   handler: async (ctx, args) => {
     const cleanSlug = args.slug.trim().toLowerCase()
-    let app = await ctx.db
+    let rawApp = await ctx.db
       .query('apps')
       .withIndex('by_slug', (q) => q.eq('slug', cleanSlug))
       .first()
 
     // Fallback: search by name
-    if (!app) {
+    if (!rawApp) {
       const allApps = await ctx.db.query('apps').collect()
-      app =
+      rawApp =
         allApps.find(
           (a) =>
             a.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanSlug ||
             a.name.toLowerCase() === cleanSlug,
         ) || null
     }
+
+    let app = rawApp ? normalizeAppIcon(rawApp) : null
 
     // Auto-seed known trending apps if not yet in database
     const KNOWN_TRENDING: Record<
@@ -94,7 +143,7 @@ export const getAppConsensus = query({
         tagline: 'The gold standard for keyboard-first, high-performance issue tracking and project planning.',
         craftScore: 96,
         utilityScore: 89,
-        iconUrl: 'https://linear.app/favicon.ico',
+        iconUrl: '/assets/linear_icon.png',
         status: 'Certified LGTM',
       },
       raycast: {
@@ -103,7 +152,7 @@ export const getAppConsensus = query({
         tagline: 'Supercharged productivity launcher replacing spotlight with extensible craft micro-tools.',
         craftScore: 98,
         utilityScore: 94,
-        iconUrl: 'https://www.raycast.com/favicon.ico',
+        iconUrl: '/assets/raycast_favicon.png',
         status: 'Certified LGTM',
       },
       'arc-browser-v2': {
@@ -112,7 +161,7 @@ export const getAppConsensus = query({
         tagline: 'The chrome-free spatial browser exploring tactile spaces and easel canvases.',
         craftScore: 92,
         utilityScore: 48,
-        iconUrl: 'https://arc.net/favicon.ico',
+        iconUrl: '/assets/arc_favicon.png',
         status: 'Needs Polish',
       },
       'cash-card-haptics': {

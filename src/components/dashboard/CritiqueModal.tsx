@@ -7,6 +7,7 @@ import CriticAvatar from '../CriticAvatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/Dialog'
 import { useSelector } from '@tanstack/react-form'
 import { useAppForm } from '../form'
+import { resolveAppIcon, handleAppIconError } from '../../lib/appIcons'
 
 export interface CritiqueModalProps {
   isOpen: boolean
@@ -224,16 +225,21 @@ export default function CritiqueModal({
                                 : 'bg-white/70 hover:bg-white border-black/10'
                             }`}
                           >
-                            {app.iconUrl && (
-                              <img
-                                src={app.iconUrl}
-                                alt={app.name}
-                                className="size-6 rounded-md object-contain shrink-0"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none'
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const iconSrc = resolveAppIcon(app)
+                              return iconSrc ? (
+                                <img
+                                  src={iconSrc}
+                                  alt={app.name}
+                                  className="size-6 rounded-md object-contain shrink-0"
+                                  onError={(e) => handleAppIconError(e, app.name, app.slug)}
+                                />
+                              ) : (
+                                <div className="size-6 rounded-md bg-amber-500/10 border border-amber-600/20 text-amber-900 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                  {app.name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )
+                            })()}
                             <div className="min-w-0 flex-1">
                               <span className="text-xs font-bold text-foreground truncate block">
                                 {app.name}
@@ -377,16 +383,17 @@ export default function CritiqueModal({
             <div className="relative rounded-[28px] border border-black/15 bg-scorecard p-6 shadow-md rotate-1 hover:rotate-0 transition-transform duration-300">
               {/* Header */}
               <div className="flex items-center gap-3 pb-3 border-b border-black/10">
-                {selectedApp?.iconUrl && (
-                  <img
-                    src={selectedApp.iconUrl}
-                    alt={selectedApp.name}
-                    className="size-10 rounded-xl object-contain border border-black/5 bg-white shrink-0 p-0.5 shadow-2xs"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                )}
+                {(() => {
+                  const iconSrc = resolveAppIcon(selectedApp)
+                  return iconSrc ? (
+                    <img
+                      src={iconSrc}
+                      alt={selectedApp?.name}
+                      className="size-10 rounded-xl object-contain border border-black/5 bg-white shrink-0 p-0.5 shadow-2xs"
+                      onError={(e) => handleAppIconError(e, selectedApp?.name, selectedApp?.slug)}
+                    />
+                  ) : null
+                })()}
                 <div>
                   <h4 className="text-base font-black text-foreground">
                     {selectedApp?.name ?? 'Application'}

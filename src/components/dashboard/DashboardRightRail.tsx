@@ -80,9 +80,23 @@ export default function DashboardRightRail({
   const [pendingHandles, setPendingHandles] = useState<Record<string, boolean>>({})
 
   // Real Convex queries & mutations
+  const liveTrendingData = useConvexReactQuery(api.apps.listTrending, { limit: 4 })
   const suggestedCriticsData = useConvexReactQuery(api.follows.listSuggestedCritics, { limit: 4 })
   const followingHandles = useConvexReactQuery(api.follows.getMyFollowingHandles, {}) || []
   const toggleFollowMutation = useConvexMutation(api.follows.toggleFollow)
+
+  const trendingApps =
+    liveTrendingData && liveTrendingData.length > 0
+      ? liveTrendingData.map((a) => ({
+          name: a.name,
+          slug: a.slug,
+          category: a.category,
+          craftScore: a.craftScore,
+          utilityScore: a.utilityScore,
+          status: a.status,
+          evaluationsCount: a.reviewCount,
+        }))
+      : TRENDING_APPS
 
   const critics =
     suggestedCriticsData && suggestedCriticsData.length > 0
@@ -139,7 +153,7 @@ export default function DashboardRightRail({
         </div>
 
         <div className="divide-y divide-black/5">
-          {TRENDING_APPS.map((app) => (
+          {trendingApps.map((app) => (
             <Link
               key={app.name}
               to="/app/$slug"
@@ -242,18 +256,7 @@ export default function DashboardRightRail({
           })}
         </div>
       </div>
-
-      {/* Mini Editorial Legal / Policy Footer */}
-      <div className="px-2 pt-2 text-xs text-neutral-400 leading-relaxed space-y-1.5">
-        <div className="flex flex-wrap gap-x-3.5 gap-y-1">
-          <span>Privacy</span>
-          <span>Terms</span>
-          <span>Feedback</span>
-        </div>
-        <p className="text-[11px] text-neutral-400">
-          &copy; 2026 Screenlog · Certified LGTM Consortium
-        </p>
-      </div>
+ 
     </div>
   )
 }

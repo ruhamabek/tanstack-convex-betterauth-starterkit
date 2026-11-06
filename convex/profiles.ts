@@ -14,10 +14,27 @@ export const getMyProfile = query({
     }
 
     const userId = String(user._id)
-    const profile = await ctx.db
+    let profile = await ctx.db
       .query('profiles')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .first()
+
+    // If not found by userId, resolve by email or handle fallback for demo critics
+    if (!profile && user.email) {
+      const emailLower = user.email.toLowerCase()
+      const EMAIL_TO_HANDLE: Record<string, string> = {
+        'marcus@screenlog.dev': 'subgrid_sorcerer',
+        'elena@screenlog.dev': 'pixel_snob',
+        'alex@screenlog.dev': 'kerning_ghost',
+        'sarah@screenlog.dev': 'motion_curator',
+        'bananas@screenlog.dev': 'bananas',
+      }
+      const targetHandle = EMAIL_TO_HANDLE[emailLower] || emailLower.split('@')[0]
+      profile = await ctx.db
+        .query('profiles')
+        .withIndex('by_handle', (q) => q.eq('handle', targetHandle))
+        .first()
+    }
 
     if (!profile) return null
 
@@ -31,6 +48,108 @@ export const getMyProfile = query({
       bannerUrl = (await ctx.storage.getUrl(profile.bannerStorageId)) || profile.bannerUrl
     }
     return { ...profile, avatarUrl, bannerUrl }
+  },
+})
+
+export const ensureMyProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getOptionalAuthUser(ctx)
+    if (!user) return null
+
+    const userId = String(user._id)
+    let profile = await ctx.db
+      .query('profiles')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!profile && user.email) {
+      const emailLower = user.email.toLowerCase()
+      const EMAIL_TO_HANDLE: Record<string, string> = {
+        'marcus@screenlog.dev': 'subgrid_sorcerer',
+        'elena@screenlog.dev': 'pixel_snob',
+        'alex@screenlog.dev': 'kerning_ghost',
+        'sarah@screenlog.dev': 'motion_curator',
+        'bananas@screenlog.dev': 'bananas',
+      }
+      const targetHandle = EMAIL_TO_HANDLE[emailLower] || emailLower.split('@')[0]
+      profile = await ctx.db
+        .query('profiles')
+        .withIndex('by_handle', (q) => q.eq('handle', targetHandle))
+        .first()
+
+      if (profile) {
+        // Link Better Auth user to this profile
+        await ctx.db.patch(profile._id, {
+          userId,
+          updatedAt: Date.now(),
+        })
+      }
+    }
+
+    if (profile) {
+      // Re-bind reviews authored by this handle
+      const reviews = await ctx.db
+        .query('reviews')
+        .filter((q) => q.eq(q.field('authorHandle'), profile.handle))
+        .collect()
+      for (const r of reviews) {
+        if (r.userId !== userId) {
+          await ctx.db.patch(r._id, { userId })
+        }
+      }
+
+      // Re-bind notifications targeted to this handle
+      const notifs = await ctx.db
+        .query('notifications')
+        .filter((q) => q.eq(q.field('targetHandle'), profile.handle))
+        .collect()
+      for (const n of notifs) {
+        if (n.userId !== userId) {
+          await ctx.db.patch(n._id, { userId })
+        }
+      }
+
+      // Re-bind seeded follows where this persona was follower
+      const DEMO_USER_IDS: Record<string, string> = {
+        subgrid_sorcerer: 'user_marcus_vance',
+        pixel_snob: 'user_elena_rostova',
+        kerning_ghost: 'user_alex_thorne',
+        motion_curator: 'user_sarah_lin',
+        bananas: 'user_bananas',
+      }
+      const seedUserId = DEMO_USER_IDS[profile.handle]
+      if (seedUserId && seedUserId !== userId) {
+        const follows = await ctx.db
+          .query('follows')
+          .withIndex('by_follower', (q) => q.eq('followerUserId', seedUserId))
+          .collect()
+        for (const f of follows) {
+          await ctx.db.patch(f._id, { followerUserId: userId })
+        }
+      }
+    }
+
+    // Self-heal known app icons in database if still pointing to external favicons
+    const ICON_FIXES: Record<string, string> = {
+      raycast: '/assets/raycast_favicon.png',
+      'arc-browser-v2': '/assets/arc_favicon.png',
+      cron: '/assets/notion_logo.png',
+      linear: '/assets/linear_icon.png',
+      supabase: '/assets/supabase_icon.svg',
+      notion: '/assets/notion_logo.png',
+    }
+    for (const [slug, correctIcon] of Object.entries(ICON_FIXES)) {
+      const app = await ctx.db
+        .query('apps')
+        .withIndex('by_slug', (q) => q.eq('slug', slug))
+        .first()
+      if (app && app.iconUrl !== correctIcon) {
+        await ctx.db.patch(app._id, { iconUrl: correctIcon })
+      }
+    }
+
+    return profile ? profile._id : null
   },
 })
 

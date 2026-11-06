@@ -77,11 +77,23 @@ function DashboardPage() {
   const evaluateAppMutation = useConvexMutation(api.apps.upsertAppAndEvaluate)
   const createAndAppraiseMutation = useConvexMutation(api.apps.createAndAppraiseSpecimen)
   const toggleFollowMutation = useConvexMutation(api.follows.toggleFollow)
+  const seedPlatformDataMutation = useConvexMutation(api.seed.seedPlatformData)
 
   const saveProfile = useMutation({ mutationFn: saveProfileMutation })
   const evaluateApp = useMutation({ mutationFn: evaluateAppMutation })
   const createAndAppraise = useMutation({ mutationFn: createAndAppraiseMutation })
   const toggleFollow = useMutation({ mutationFn: toggleFollowMutation })
+  const seedPlatform = useMutation({ mutationFn: seedPlatformDataMutation })
+
+  // Auto-seed and cleanup legacy reviews if needed
+  useEffect(() => {
+    const hasLegacyReviews = myReviews.some(
+      (r) => r.quote?.includes('Thursday Drop') || r.quote?.includes('Anonymous ballot'),
+    )
+    if (apps.length < 3 || hasLegacyReviews) {
+      seedPlatform.mutate({ forceResetLegacyReviews: false })
+    }
+  }, [apps.length, myReviews])
 
   // Modals state & Tab selection
   const [activeTab, setActiveTab] = useState<VerdictFilter>('all')

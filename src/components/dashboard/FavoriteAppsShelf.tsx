@@ -1,4 +1,5 @@
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { resolveAppIcon, handleAppIconError } from '../../lib/appIcons'
 
 export interface FavoriteAppsShelfProps {
   apps: Doc<'apps'>[]
@@ -31,6 +32,7 @@ export default function FavoriteAppsShelf({
         {top4Apps.map((app) => {
           const isLgtm = app.craftScore >= 90 && app.utilityScore >= 80
           const isMixed = !isLgtm && (app.craftScore >= 70 || app.utilityScore >= 70)
+          const resolvedIcon = resolveAppIcon(app)
           
           return (
             <div
@@ -47,19 +49,17 @@ export default function FavoriteAppsShelf({
                     referrerPolicy="no-referrer"
                     className="size-10 rounded-xl object-cover border border-black/5 bg-desk shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
                     onError={(e) => {
-                      if (app.iconUrl) {
-                        e.currentTarget.src = app.iconUrl
+                      if (resolvedIcon) {
+                        e.currentTarget.src = resolvedIcon
                       }
                     }}
                   />
-                ) : app.iconUrl ? (
+                ) : resolvedIcon ? (
                   <img
-                    src={app.iconUrl}
+                    src={resolvedIcon}
                     alt={app.name}
                     className="size-10 rounded-xl object-contain border border-black/5 bg-desk shrink-0 shadow-2xs p-0.5 group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
+                    onError={(e) => handleAppIconError(e, app.name, app.slug)}
                   />
                 ) : (
                   <div className="size-10 rounded-xl bg-desk border border-black/5 flex items-center justify-center font-black text-sm text-foreground">

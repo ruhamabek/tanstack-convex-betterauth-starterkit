@@ -19,6 +19,7 @@ import EvaluateAppModal from '../components/dashboard/EvaluateAppModal'
 import CreateSpecimenModal from '../components/dashboard/CreateSpecimenModal'
 import CritiqueDiscussionDrawer from '../components/dashboard/CritiqueDiscussionDrawer'
 import TasteCardExportModal from '../components/dashboard/TasteCardExportModal'
+import { resolveAppIcon, handleAppIconError } from '../lib/appIcons'
 import type { ReviewWithAppAndSocial } from '../components/dashboard/ScorecardReviewCard'
 
 export const Route = createFileRoute('/_protected/app/$slug')({
@@ -230,21 +231,21 @@ function AppConsensusHubPage() {
             <div className="flex items-start gap-4 min-w-0">
               {/* App Icon */}
               <div className="size-16 sm:size-20 rounded-2xl border border-black/10 bg-neutral-100 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                {app?.iconUrl ? (
-                  <img
-                    src={app.iconUrl}
-                    alt={app.name}
-                    className="size-full object-cover"
-                    onError={(e) => {
-                      // Fallback letter avatar
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                ) : (
-                  <span className="text-2xl font-black text-neutral-400">
-                    {app?.name?.charAt(0).toUpperCase()}
-                  </span>
-                )}
+                {(() => {
+                  const iconSrc = resolveAppIcon(app)
+                  return iconSrc ? (
+                    <img
+                      src={iconSrc}
+                      alt={app?.name}
+                      className="size-full object-contain p-2"
+                      onError={(e) => handleAppIconError(e, app?.name, app?.slug)}
+                    />
+                  ) : (
+                    <span className="text-2xl font-black text-neutral-400">
+                      {app?.name?.charAt(0).toUpperCase()}
+                    </span>
+                  )
+                })()}
               </div>
 
               {/* Title & Metadata */}

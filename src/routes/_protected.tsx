@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useConvexMutation } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
 import { AppSidebar } from '../components/app-sidebar'
 import { SiteHeader } from '../components/site-header'
@@ -38,12 +39,29 @@ function ProtectedLayout() {
     convexQueryClient.queryOptions(api.profiles.getMyProfile, {}),
   )
 
+  const ensureMyProfileMutation = useConvexMutation(api.profiles.ensureMyProfile)
+
+  useEffect(() => {
+    if (user?._id) {
+      ensureMyProfileMutation({}).catch(() => {})
+    }
+  }, [user?._id, ensureMyProfileMutation])
+
   const [isStoryOpen, setIsStoryOpen] = useState(false)
+  const [storyTargetHandle, setStoryTargetHandle] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchInitialQuery, setSearchInitialQuery] = useState('')
 
   useEffect(() => {
-    const handleOpenStory = () => setIsStoryOpen(true)
+    const handleOpenStory = (e: Event) => {
+      const customEvent = e as CustomEvent<{ handle?: string }>
+      if (customEvent.detail?.handle) {
+        setStoryTargetHandle(customEvent.detail.handle)
+      } else {
+        setStoryTargetHandle(null)
+      }
+      setIsStoryOpen(true)
+    }
     const handleOpenSearch = (e: Event) => {
       const customEvent = e as CustomEvent<{ query?: string }>
       if (customEvent.detail?.query) {
@@ -101,8 +119,15 @@ function ProtectedLayout() {
       {isStoryOpen && (
         <CriticShowreelModal
           isOpen={isStoryOpen}
-          onClose={() => setIsStoryOpen(false)}
-          profile={profile ?? null}
+          onClose={() => {
+            setIsStoryOpen(false)
+            setStoryTargetHandle(null)
+          }}
+          profile={
+            storyTargetHandle
+              ? { handle: storyTargetHandle, displayName: storyTargetHandle }
+              : (profile ?? null)
+          }
         />
       )}
 
