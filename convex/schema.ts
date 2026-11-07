@@ -44,6 +44,10 @@ export default defineSchema({
     reviewCount: v.number(),
     status: v.string(), // "Certified LGTM" | "Needs Polish" | "Bloated" | "Rotten"
     featured: v.optional(v.boolean()),
+    // Production trending & momentum metrics
+    trendingScore: v.optional(v.number()), // Time-decayed velocity score
+    recentReviewCount: v.optional(v.number()), // Reviews within 7-day rolling window
+    recentActivityCount: v.optional(v.number()), // Total engagement events within 7 days
     // Multi-source digital craft specimen extensions
     sourceType: v.optional(v.string()), // "product" | "dribbble" | "pinterest" | "mobbin" | "figma"
     sourceUrl: v.optional(v.string()), // Outbound link to original post / shot / design
@@ -57,7 +61,8 @@ export default defineSchema({
   })
     .index('by_slug', ['slug'])
     .index('by_category', ['category'])
-    .index('by_source_type', ['sourceType']),
+    .index('by_source_type', ['sourceType'])
+    .index('by_trending_score', ['trendingScore']),
 
   // Dual Meter Reviews & Living Scorecards
   reviews: defineTable({
@@ -85,7 +90,9 @@ export default defineSchema({
     .index('by_app', ['appId'])
     .index('by_user', ['userId'])
     .index('by_app_and_user', ['appId', 'userId'])
-    .index('by_parent_review', ['parentReviewId']),
+    .index('by_parent_review', ['parentReviewId'])
+    .index('by_created_at', ['createdAt'])
+    .index('by_app_and_created_at', ['appId', 'createdAt']),
 
   // Review Endorsements (Heart / Upvote)
   reviewReactions: defineTable({
@@ -96,7 +103,8 @@ export default defineSchema({
   })
     .index('by_review', ['reviewId'])
     .index('by_review_and_user', ['reviewId', 'userId'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    .index('by_created_at', ['createdAt']),
 
   // Specimen Bookmarking & Personal Collections
   reviewBookmarks: defineTable({
@@ -106,7 +114,8 @@ export default defineSchema({
   })
     .index('by_review', ['reviewId'])
     .index('by_user', ['userId'])
-    .index('by_review_and_user', ['reviewId', 'userId']),
+    .index('by_review_and_user', ['reviewId', 'userId'])
+    .index('by_created_at', ['createdAt']),
 
   // Critique Discussion Drawer (Threaded Comments)
   reviewComments: defineTable({
@@ -123,7 +132,8 @@ export default defineSchema({
   })
     .index('by_review', ['reviewId'])
     .index('by_user', ['userId'])
-    .index('by_parent', ['parentCommentId']),
+    .index('by_parent', ['parentCommentId'])
+    .index('by_created_at', ['createdAt']),
 
   // Critic Social Graph / Following System
   follows: defineTable({

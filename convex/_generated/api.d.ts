@@ -10,9 +10,11 @@
 
 import type * as apps from "../apps.js";
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as follows from "../follows.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as profiles from "../profiles.js";
 import type * as reviews from "../reviews.js";
@@ -22,6 +24,7 @@ import type * as showreel from "../showreel.js";
 import type * as social from "../social.js";
 import type * as storage from "../storage.js";
 import type * as todos from "../todos.js";
+import type * as trending from "../trending.js";
 
 import type {
   ApiFromModules,
@@ -32,9 +35,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   apps: typeof apps;
   auth: typeof auth;
+  crons: typeof crons;
   follows: typeof follows;
   helpers: typeof helpers;
   http: typeof http;
+  migrations: typeof migrations;
   notifications: typeof notifications;
   profiles: typeof profiles;
   reviews: typeof reviews;
@@ -44,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   social: typeof social;
   storage: typeof storage;
   todos: typeof todos;
+  trending: typeof trending;
 }>;
 
 /**

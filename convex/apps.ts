@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireAuthUser } from './helpers'
 import type { Id } from './_generated/dataModel'
+import { recalculateAppTrending } from './trending'
 
 const APP_LOCAL_ICONS: Record<string, string> = {
   raycast: '/assets/raycast_favicon.png',
@@ -72,17 +73,54 @@ export const listTrending = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 5
     const rawApps = await ctx.db.query('apps').collect()
+    if (rawApps.length === 0) return []
     const apps = rawApps.map(normalizeAppIcon)
 
-    // Sort by reviewCount descending, then craftScore descending
+    // Sort primarily by computed trendingScore descending,
+    // breaking ties with reviewCount descending, then craftScore descending
     const sorted = apps.sort((a, b) => {
+      const scoreA = a.trendingScore ?? 0
+      const scoreB = b.trendingScore ?? 0
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA
+      }
       if (b.reviewCount !== a.reviewCount) {
         return b.reviewCount - a.reviewCount
       }
       return b.craftScore - a.craftScore
     })
 
-    return sorted.slice(0, limit)
+    return sorted.slice(0, limit).map((app) => {
+      const recentTakes = app.recentReviewCount ?? 0
+      const score = app.trendingScore ?? 0
+      const isHot = score >= 20 || recentTakes >= 2
+      const isDebated =
+        Math.abs(app.craftScore - app.utilityScore) >= 25 ||
+        (app.recentActivityCount ?? 0) >= 3
+
+      let velocityLabel = `${app.reviewCount} ${app.reviewCount === 1 ? 'take' : 'takes'}`
+      if (recentTakes > 0) {
+        velocityLabel = `${recentTakes} ${recentTakes === 1 ? 'take' : 'takes'} this week`
+      }
+
+      return {
+        _id: app._id,
+        name: app.name,
+        slug: app.slug,
+        category: app.category,
+        iconUrl: app.iconUrl,
+        craftScore: app.craftScore,
+        utilityScore: app.utilityScore,
+        status: app.status,
+        reviewCount: app.reviewCount,
+        trendingScore: score,
+        recentTakesCount: recentTakes,
+        recentActivityCount: app.recentActivityCount ?? 0,
+        isHot,
+        isDebated,
+        velocityLabel,
+      }
+    })
   },
 })
 
@@ -508,6 +546,9 @@ export const createAndAppraiseSpecimen = mutation({
       updatedAt: now,
     })
 
+    // 4. Recalculate and update app trending momentum
+    await recalculateAppTrending(ctx, appId)
+
     return {
       appId,
       reviewId,
@@ -701,6 +742,9 @@ export const upsertAppAndEvaluate = mutation({
       badge: updatedBadge,
       updatedAt: now,
     })
+
+    // 4. Recalculate and update app trending momentum
+    await recalculateAppTrending(ctx, appId)
 
     return {
       appId,

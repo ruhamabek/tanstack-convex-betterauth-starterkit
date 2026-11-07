@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { getOptionalAuthUser } from './helpers'
 import type { Id } from './_generated/dataModel'
+import { recalculateAppTrending } from './trending'
 
 export const DEMO_CRITICS = [
   {
@@ -426,6 +427,7 @@ export const seedPlatformData = mutation({
       if (appId) {
         const count = (await ctx.db.query('reviews').withIndex('by_app', (q) => q.eq('appId', appId)).collect()).length
         await ctx.db.patch(appId, { reviewCount: Math.max(count, 3) })
+        await recalculateAppTrending(ctx, appId)
       }
     }
 

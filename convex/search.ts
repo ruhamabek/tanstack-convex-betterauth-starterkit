@@ -37,7 +37,14 @@ export const globalSearch = query({
 
     // If query is empty, return curated trending apps & pioneer critics for immediate instant display
     if (!rawQuery) {
-      const allApps = await ctx.db.query('apps').take(6)
+      const rawApps = await ctx.db.query('apps').collect()
+      const allApps = rawApps.sort((a, b) => {
+        const scoreA = a.trendingScore ?? 0
+        const scoreB = b.trendingScore ?? 0
+        if (scoreB !== scoreA) return scoreB - scoreA
+        if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount
+        return b.craftScore - a.craftScore
+      })
       const allProfiles = await ctx.db.query('profiles').take(4)
 
       const enrichedProfiles = await Promise.all(

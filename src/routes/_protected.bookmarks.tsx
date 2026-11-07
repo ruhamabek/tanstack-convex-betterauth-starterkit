@@ -187,8 +187,8 @@ function BookmarksPage() {
               to="/feed"
               className="px-6 py-2.5 rounded-full bg-foreground hover:bg-neutral-800 text-background text-xs font-bold transition active:scale-95 inline-flex items-center gap-2 shadow-xs !no-underline"
             >
-              <span>Explore Home Feed</span>
-              <ArrowRight className="size-3.5" />
+              <span className="text-white">Explore Home Feed</span>
+              <ArrowRight className="size-3.5 text-white" />
             </Link>
           </div>
         ) : (

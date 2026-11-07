@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireAuthUser, getOptionalAuthUser } from './helpers'
+import { recalculateAppTrending } from './trending'
 
 export const toggleEndorse = mutation({
   args: {
@@ -57,6 +58,12 @@ export const toggleEndorse = mutation({
       .query('reviewReactions')
       .withIndex('by_review', (q) => q.eq('reviewId', args.reviewId))
       .collect()
+
+    // Recalculate app trending velocity
+    const targetReview = await ctx.db.get(args.reviewId)
+    if (targetReview) {
+      await recalculateAppTrending(ctx, targetReview.appId)
+    }
 
     return {
       endorsed: !existing,
@@ -229,6 +236,11 @@ export const addComment = mutation({
         read: false,
         createdAt: now,
       })
+    }
+
+    // Recalculate app trending velocity
+    if (review) {
+      await recalculateAppTrending(ctx, review.appId)
     }
 
     return commentId

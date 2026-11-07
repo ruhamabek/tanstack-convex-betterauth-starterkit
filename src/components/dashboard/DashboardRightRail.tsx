@@ -1,54 +1,16 @@
 import { useState } from 'react'
-import { Search, TrendingUp } from 'lucide-react'
+import { Search, TrendingUp, Flame } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useQuery as useConvexReactQuery } from 'convex/react'
 import { useConvexMutation } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 import CriticAvatar from '../CriticAvatar'
+import { Skeleton } from '../ui/skeleton'
 
 interface DashboardRightRailProps {
   onSearchChange?: (query: string) => void
   onSelectTag?: (tag: string) => void
 }
-
-const TRENDING_APPS = [
-  {
-    name: 'Linear',
-    slug: 'linear',
-    category: 'Issue Tracking',
-    craftScore: 96,
-    utilityScore: 89,
-    status: 'Certified LGTM',
-    evaluationsCount: 142,
-  },
-  {
-    name: 'Raycast',
-    slug: 'raycast',
-    category: 'Productivity & Launcher',
-    craftScore: 98,
-    utilityScore: 94,
-    status: 'Certified LGTM',
-    evaluationsCount: 98,
-  },
-  {
-    name: 'Arc Browser (v2)',
-    slug: 'arc-browser-v2',
-    category: 'Web Browser',
-    craftScore: 92,
-    utilityScore: 48,
-    status: 'Needs Polish',
-    evaluationsCount: 86,
-  },
-  {
-    name: 'Cash Card Haptics',
-    slug: 'cash-card-haptics',
-    category: 'Mobbin Flow',
-    craftScore: 95,
-    utilityScore: 92,
-    status: 'Certified LGTM',
-    evaluationsCount: 64,
-  },
-]
 
 const DEFAULT_TOP_CRITICS = [
   {
@@ -85,18 +47,8 @@ export default function DashboardRightRail({
   const followingHandles = useConvexReactQuery(api.follows.getMyFollowingHandles, {}) || []
   const toggleFollowMutation = useConvexMutation(api.follows.toggleFollow)
 
-  const trendingApps =
-    liveTrendingData && liveTrendingData.length > 0
-      ? liveTrendingData.map((a) => ({
-          name: a.name,
-          slug: a.slug,
-          category: a.category,
-          craftScore: a.craftScore,
-          utilityScore: a.utilityScore,
-          status: a.status,
-          evaluationsCount: a.reviewCount,
-        }))
-      : TRENDING_APPS
+  const isLoadingTrending = liveTrendingData === undefined
+  const trendingApps = liveTrendingData || []
 
   const critics =
     suggestedCriticsData && suggestedCriticsData.length > 0
@@ -152,34 +104,72 @@ export default function DashboardRightRail({
        
         </div>
 
-        <div className="divide-y divide-black/5">
-          {trendingApps.map((app) => (
-            <Link
-              key={app.name}
-              to="/app/$slug"
-              params={{ slug: app.slug }}
-              className="py-3.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3.5 group hover:bg-black/[0.02] -mx-2.5 px-2.5 rounded-2xl transition cursor-pointer !no-underline"
-              onClick={() => onSelectTag?.(app.name)}
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-foreground truncate group-hover:underline">
-                    {app.name}
+        {isLoadingTrending ? (
+          <div className="divide-y divide-black/5 py-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="py-3.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3.5"
+              >
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <Skeleton className="h-4 w-28 rounded-md" />
+                  <Skeleton className="h-3 w-40 rounded-md" />
+                </div>
+                <Skeleton className="h-5 w-12 rounded-full shrink-0" />
+              </div>
+            ))}
+          </div>
+        ) : trendingApps.length === 0 ? (
+          <div className="py-6 text-center text-xs text-neutral-400">
+            No specimens under review yet.
+          </div>
+        ) : (
+          <div className="divide-y divide-black/5">
+            {trendingApps.map((app) => (
+              <Link
+                key={app.slug}
+                to="/app/$slug"
+                params={{ slug: app.slug }}
+                className="py-3.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3 group hover:bg-black/[0.02] -mx-2.5 px-2.5 rounded-2xl transition cursor-pointer !no-underline"
+                onClick={() => onSelectTag?.(app.name)}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-foreground truncate group-hover:underline">
+                      {app.name}
+                    </span>
+                    {app.isHot && (
+                      <span
+                        title={`Trending momentum score: ${app.trendingScore}`}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-900 border border-amber-600/20 shrink-0"
+                      >
+                        <Flame className="size-2.5 text-amber-600 fill-amber-500" />
+                        <span>HOT</span>
+                      </span>
+                    )}
+                    {app.isDebated && !app.isHot && (
+                      <span
+                        title="Active community counter-appraisals"
+                        className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-rose-500/10 text-rose-800 border border-rose-500/20 shrink-0"
+                      >
+                        DEBATE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-500 truncate mt-0.5">
+                    {app.category} · {app.velocityLabel || `${app.reviewCount} takes`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    {app.craftScore}%
                   </span>
                 </div>
-                <p className="text-xs text-neutral-500 truncate mt-0.5">
-                  {app.category} · {app.evaluationsCount} takes
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  {app.craftScore}%
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Critics to Follow Widget */}
